@@ -614,7 +614,7 @@ AbstractBackgroundWidget {
                     return "BUILD A TOWER\ndefend the gate"
                 }
                 color: "#d8efff"
-                font.pixelSize: 6.5
+                font.pixelSize: 7
                 font.bold: true
                 lineHeight: 0.9
             }
