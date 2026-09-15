@@ -12,7 +12,7 @@ AbstractBackgroundWidget {
     hoverEnabled: true
 
     implicitWidth: 430
-    implicitHeight: 330
+    implicitHeight: 346
 
     component PixelButton: Rectangle {
         id: pixelButton
@@ -298,58 +298,16 @@ AbstractBackgroundWidget {
                             height: 22
                             z: 4
 
-                            Rectangle {
-                                anchors.fill: parent
-                                radius: 6
-                                color: game.selectedTowerId === modelData.id ? "#e8f8ff" : "#101d31"
-                                border.width: 2
-                                border.color: definition.color
-                            }
-                            Rectangle {
+                            Image {
                                 anchors.centerIn: parent
-                                width: modelData.type === "cannon" ? 15 : 12
-                                height: modelData.type === "frost" ? 15 : 12
-                                radius: modelData.type === "frost" ? 1 : 5
-                                rotation: modelData.type === "frost" ? 45 : 0
-                                color: definition.color
-                            }
-                            Rectangle {
-                                visible: modelData.type === "cannon"
-                                anchors.verticalCenter: parent.verticalCenter
-                                x: 5
-                                width: 13
-                                height: 4
-                                radius: 2
-                                color: "#fbd38d"
-                            }
-                            Rectangle {
-                                visible: modelData.type === "arc"
-                                anchors.centerIn: parent
-                                width: 3
-                                height: 18
-                                color: "#fff0fd"
-                            }
-                            Rectangle {
-                                visible: modelData.type === "bolt"
-                                anchors.centerIn: parent
-                                width: 17
-                                height: 2
-                                color: "#effcff"
-                            }
-                            Rectangle {
-                                visible: modelData.type === "bolt"
-                                anchors.centerIn: parent
-                                width: 2
-                                height: 17
-                                color: "#effcff"
-                            }
-                            Rectangle {
-                                visible: modelData.type === "frost"
-                                anchors.centerIn: parent
-                                width: 3
-                                height: 18
-                                rotation: 90
-                                color: "#f5f3ff"
+                                width: 32
+                                height: 32
+                                source: Qt.resolvedUrl("assets/tower-" + modelData.type + ".svg")
+                                sourceSize.width: 64
+                                sourceSize.height: 64
+                                smooth: true
+                                scale: game.selectedTowerId === modelData.id ? 1.08 : 1
+                                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
                             }
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
@@ -388,39 +346,16 @@ AbstractBackgroundWidget {
                             height: modelData.size
                             z: 6
 
-                            Rectangle {
+                            Image {
                                 anchors.centerIn: parent
-                                width: parent.width
-                                height: parent.height
-                                radius: modelData.type === "boss" || modelData.type === "armored" ? 3 : modelData.type === "runner" ? 1 : parent.width / 2
-                                rotation: modelData.type === "runner" ? 45 : 0
-                                color: modelData.hit > 0 ? "#ffffff" : modelData.color
-                                border.width: modelData.type === "armored" || modelData.type === "boss" ? 2 : 1
-                                border.color: modelData.type === "boss" ? "#ffd1dc" : "#17243b"
-                            }
-                            Rectangle {
-                                visible: modelData.type === "armored"
-                                anchors.centerIn: parent
-                                width: parent.width + 4
-                                height: 3
-                                color: "#d7e1ec"
-                            }
-                            Rectangle {
-                                visible: modelData.type === "boss"
-                                anchors.centerIn: parent
-                                width: parent.width + 8
-                                height: 3
-                                color: "#ffd1dc"
-                            }
-                            Rectangle {
-                                visible: modelData.type === "swarm"
-                                anchors.centerIn: parent
-                                width: parent.width + 4
-                                height: parent.height + 4
-                                color: "transparent"
-                                border.width: 1
-                                border.color: "#f0abfc"
-                                rotation: 45
+                                width: modelData.type === "boss" ? 32 : Math.max(17, parent.width * 1.8)
+                                height: width
+                                source: Qt.resolvedUrl("assets/enemy-" + modelData.type + ".svg")
+                                sourceSize.width: 64
+                                sourceSize.height: 64
+                                smooth: true
+                                scale: modelData.hit > 0 ? 1.18 : 1
+                                Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutQuad } }
                             }
                             Rectangle {
                                 x: -2
@@ -651,7 +586,7 @@ AbstractBackgroundWidget {
             x: 198
             y: 245
             width: 218
-            height: 44
+            height: 56
             radius: 4
             color: "#152843"
             border.width: 1
@@ -665,23 +600,28 @@ AbstractBackgroundWidget {
                 text: {
                     if (game.selectedTower) {
                         const stats = game.towerStats(game.selectedTower)
+                        const next = game.nextTowerStats(game.selectedTower)
+                        const nextText = next
+                            ? "NEXT L" + (game.selectedTower.level + 1) + " +" + (next.damage - stats.damage) + " DMG"
+                            : "MAX LEVEL"
                         return game.towerDefinition(game.selectedTower.type).name + " L" + game.selectedTower.level
-                            + "\nDMG " + stats.damage + "  RNG " + Math.round(stats.range)
+                            + "\nCURRENT  " + stats.damage + " DMG  " + Math.round(stats.range) + " RNG"
                             + "\nATK " + stats.rate.toFixed(2) + "s  " + game.selectedTower.target
+                            + "\n" + nextText
                     }
                     if (game.buildType !== "")
                         return game.towerDefinition(game.buildType).name + "\nclick grass"
                     return "BUILD A TOWER\ndefend the gate"
                 }
                 color: "#d8efff"
-                font.pixelSize: 7
+                font.pixelSize: 6.5
                 font.bold: true
                 lineHeight: 0.9
             }
 
             PixelButton {
                 x: 103
-                y: 7
+                y: 13
                 width: 36
                 height: 29
                 visible: game.selectedTower !== null
@@ -693,7 +633,7 @@ AbstractBackgroundWidget {
             }
             PixelButton {
                 x: 142
-                y: 7
+                y: 13
                 width: 35
                 height: 29
                 visible: game.selectedTower !== null
@@ -705,7 +645,7 @@ AbstractBackgroundWidget {
             }
             PixelButton {
                 x: 180
-                y: 7
+                y: 13
                 width: 34
                 height: 29
                 visible: game.selectedTower !== null
@@ -720,7 +660,7 @@ AbstractBackgroundWidget {
         Rectangle {
             id: statusStrip
             x: 14
-            y: 289
+            y: 305
             width: parent.width - 28
             height: 32
             radius: 4

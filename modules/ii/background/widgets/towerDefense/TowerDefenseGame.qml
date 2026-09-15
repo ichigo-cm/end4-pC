@@ -315,6 +315,12 @@ QtObject {
         }
     }
 
+    function nextTowerStats(tower) {
+        if (!tower || tower.level >= 5)
+            return null
+        return towerStats({ type: tower.type, level: tower.level + 1 })
+    }
+
     function upgradeCost(tower) {
         if (!tower || tower.level >= 5)
             return 0
