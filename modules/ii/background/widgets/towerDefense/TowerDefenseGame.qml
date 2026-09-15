@@ -1,4 +1,5 @@
 import QtQuick
+import qs.services
 
 QtObject {
     id: root
@@ -12,6 +13,8 @@ QtObject {
 
     property bool paused: false
     property bool gameOver: false
+    property bool soundEnabled: configEntry ? (configEntry.soundEnabled ?? true) : true
+    onSoundEnabledChanged: if (configEntry) configEntry.soundEnabled = soundEnabled
     property int speedIndex: 0
     readonly property real speed: [1.0, 2.0, 4.0][speedIndex]
     property int wave: 0
@@ -138,6 +141,7 @@ QtObject {
         var waveText = wave % 5 === 0 ? "BOSS WAVE " + wave + "!" : "WAVE " + wave
         setMessage(waveText + " incoming.", 2.2)
         showBanner(waveText, wave % 5 === 0 ? 3.0 : 1.8)
+        playGameSound(wave % 5 === 0 ? "dialog-warning" : "complete")
     }
 
     function spawnEnemy(type) {
@@ -178,6 +182,11 @@ QtObject {
     function setMessage(text, seconds) {
         message = text
         messageTime = seconds === undefined ? 2 : seconds
+    }
+
+    function playGameSound(name) {
+        if (soundEnabled && Audio?.playSystemSound)
+            Audio.playSystemSound(name)
     }
 
     function showBanner(text, seconds) {
@@ -345,6 +354,7 @@ QtObject {
         tower.spent += cost
         towers = towers.slice()
         setMessage(towerDefinition(tower.type).name + " upgraded to level " + tower.level + ".", 1.5)
+        playGameSound("complete")
     }
 
     function sellSelected() {
@@ -459,6 +469,7 @@ QtObject {
         if (lives <= 0) {
             lives = 0
             gameOver = true
+            playGameSound("suspend-error")
             updateHighScore()
             setMessage("The gate fell after wave " + wave + ".", 999)
         }

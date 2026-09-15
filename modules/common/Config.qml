@@ -384,6 +384,7 @@ Singleton {
                         property real z: 0
                         // The game itself is ephemeral; only its best cleared wave persists.
                         property int highScore: 0
+                        property bool soundEnabled: true
                     }
 
                     property JsonObject media: JsonObject {

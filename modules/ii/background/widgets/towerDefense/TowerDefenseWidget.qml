@@ -668,9 +668,20 @@ AbstractBackgroundWidget {
             border.width: 1
             border.color: "#284563"
 
+            PixelButton {
+                x: 6
+                y: 4
+                width: 42
+                height: 24
+                label: game.soundEnabled ? "SND" : "MUTE"
+                active: game.soundEnabled
+                accent: "#c4b5fd"
+                clickAction: function() { game.soundEnabled = !game.soundEnabled }
+            }
+
             Text {
-                x: 8
-                width: 280
+                x: 56
+                width: 220
                 anchors.verticalCenter: parent.verticalCenter
                 text: game.messageTime > 0 ? game.message : (game.phase === "intermission" ? "NEXT WAVE IN " + Math.max(0, Math.ceil(game.intermission)) : "ENEMIES " + game.enemies.length)
                 color: game.gameOver ? "#fb7185" : "#8ec5e8"
