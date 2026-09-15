@@ -54,7 +54,7 @@ QtObject {
 
     property var targetModes: ["First", "Closest", "Strongest", "Last"]
 
-    Timer {
+    property Timer simulationTimer: Timer {
         interval: 33
         repeat: true
         running: true
