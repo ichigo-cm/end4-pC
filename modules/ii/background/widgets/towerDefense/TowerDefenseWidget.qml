@@ -232,6 +232,14 @@ AbstractBackgroundWidget {
                         border.width: 2
                         border.color: "#9db4ca"
                         Rectangle { x: 2; y: 3; width: 8; height: 6; color: "#ef4444" }
+                        Text {
+                            x: -23
+                            y: 31
+                            text: "CORE"
+                            color: "#fda4af"
+                            font.pixelSize: 7
+                            font.bold: true
+                        }
                     }
                     Rectangle {
                         x: 1
@@ -246,6 +254,14 @@ AbstractBackgroundWidget {
                         width: 12
                         height: 8
                         color: "#60a5fa"
+                    }
+                    Text {
+                        x: 8
+                        y: battlefield.height - 12
+                        text: "ENTRY"
+                        color: "#bfdbfe"
+                        font.pixelSize: 7
+                        font.bold: true
                     }
 
                     // The selected tower range is only visual; game.targetFor remains authoritative.
@@ -284,32 +300,56 @@ AbstractBackgroundWidget {
 
                             Rectangle {
                                 anchors.fill: parent
-                                radius: 3
-                                color: game.selectedTowerId === modelData.id ? "#d8f3ff" : "#172b43"
+                                radius: 6
+                                color: game.selectedTowerId === modelData.id ? "#e8f8ff" : "#101d31"
                                 border.width: 2
                                 border.color: definition.color
                             }
                             Rectangle {
                                 anchors.centerIn: parent
-                                width: modelData.type === "cannon" ? 14 : 9
-                                height: modelData.type === "arc" ? 14 : 8
+                                width: modelData.type === "cannon" ? 15 : 12
+                                height: modelData.type === "frost" ? 15 : 12
+                                radius: modelData.type === "frost" ? 1 : 5
                                 rotation: modelData.type === "frost" ? 45 : 0
                                 color: definition.color
                             }
                             Rectangle {
                                 visible: modelData.type === "cannon"
-                                x: 11
-                                y: 8
-                                width: 10
-                                height: 5
+                                anchors.verticalCenter: parent.verticalCenter
+                                x: 5
+                                width: 13
+                                height: 4
+                                radius: 2
                                 color: "#fbd38d"
                             }
                             Rectangle {
                                 visible: modelData.type === "arc"
                                 anchors.centerIn: parent
-                                width: 4
+                                width: 3
                                 height: 18
                                 color: "#fff0fd"
+                            }
+                            Rectangle {
+                                visible: modelData.type === "bolt"
+                                anchors.centerIn: parent
+                                width: 17
+                                height: 2
+                                color: "#effcff"
+                            }
+                            Rectangle {
+                                visible: modelData.type === "bolt"
+                                anchors.centerIn: parent
+                                width: 2
+                                height: 17
+                                color: "#effcff"
+                            }
+                            Rectangle {
+                                visible: modelData.type === "frost"
+                                anchors.centerIn: parent
+                                width: 3
+                                height: 18
+                                rotation: 90
+                                color: "#f5f3ff"
                             }
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
@@ -320,6 +360,20 @@ AbstractBackgroundWidget {
                                 font.bold: true
                                 style: Text.Outline
                                 styleColor: "#102138"
+                            }
+                            Row {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                y: parent.height + 2
+                                spacing: 2
+                                Repeater {
+                                    model: modelData.level
+                                    delegate: Rectangle {
+                                        required property int index
+                                        width: 3
+                                        height: 2
+                                        color: definition.color
+                                    }
+                                }
                             }
                         }
                     }
@@ -338,10 +392,35 @@ AbstractBackgroundWidget {
                                 anchors.centerIn: parent
                                 width: parent.width
                                 height: parent.height
-                                radius: modelData.type === "boss" ? 3 : parent.width / 2
+                                radius: modelData.type === "boss" || modelData.type === "armored" ? 3 : modelData.type === "runner" ? 1 : parent.width / 2
+                                rotation: modelData.type === "runner" ? 45 : 0
                                 color: modelData.hit > 0 ? "#ffffff" : modelData.color
                                 border.width: modelData.type === "armored" || modelData.type === "boss" ? 2 : 1
-                                border.color: "#17243b"
+                                border.color: modelData.type === "boss" ? "#ffd1dc" : "#17243b"
+                            }
+                            Rectangle {
+                                visible: modelData.type === "armored"
+                                anchors.centerIn: parent
+                                width: parent.width + 4
+                                height: 3
+                                color: "#d7e1ec"
+                            }
+                            Rectangle {
+                                visible: modelData.type === "boss"
+                                anchors.centerIn: parent
+                                width: parent.width + 8
+                                height: 3
+                                color: "#ffd1dc"
+                            }
+                            Rectangle {
+                                visible: modelData.type === "swarm"
+                                anchors.centerIn: parent
+                                width: parent.width + 4
+                                height: parent.height + 4
+                                color: "transparent"
+                                border.width: 1
+                                border.color: "#f0abfc"
+                                rotation: 45
                             }
                             Rectangle {
                                 x: -2
@@ -362,17 +441,35 @@ AbstractBackgroundWidget {
 
                     Repeater {
                         model: game.projectiles
-                        delegate: Rectangle {
+                        delegate: Item {
                             required property var modelData
-                            x: modelData.x - 3
-                            y: modelData.y - 3
-                            width: 6
+                            readonly property real dx: modelData.x - modelData.prevX
+                            readonly property real dy: modelData.y - modelData.prevY
+                            x: modelData.prevX
+                            y: modelData.prevY
+                            width: Math.max(8, Math.sqrt(dx * dx + dy * dy) + 8)
                             height: 6
-                            radius: 1
-                            color: modelData.color
-                            border.width: 1
-                            border.color: "#ffffff"
+                            rotation: Math.atan2(dy, dx) * 180 / Math.PI
+                            transformOrigin: Item.Left
                             z: 8
+                            Rectangle {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: parent.width - 7
+                                height: 2
+                                radius: 1
+                                color: modelData.color
+                                opacity: 0.5
+                            }
+                            Rectangle {
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 7
+                                height: 7
+                                radius: 3.5
+                                color: modelData.color
+                                border.width: 1
+                                border.color: "#ffffff"
+                            }
                         }
                     }
 
@@ -403,6 +500,17 @@ AbstractBackgroundWidget {
                                 height: parent.height
                                 radius: 2
                                 color: modelData.color
+                            }
+                            Text {
+                                visible: modelData.label !== ""
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                y: -12 - progress * 10
+                                text: modelData.label
+                                color: modelData.color
+                                font.pixelSize: 8
+                                font.bold: true
+                                style: Text.Outline
+                                styleColor: "#0c1528"
                             }
                         }
                     }

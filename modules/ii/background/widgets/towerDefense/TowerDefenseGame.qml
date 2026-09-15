@@ -185,9 +185,9 @@ QtObject {
         bannerTime = seconds === undefined ? 2.2 : seconds
     }
 
-    function spawnEffect(x, y, color, size) {
+    function spawnEffect(x, y, color, size, label) {
         effects = effects.concat([{
-            x: x, y: y, color: color, size: size || 10, life: 0.42, maxLife: 0.42
+            x: x, y: y, color: color, size: size || 10, label: label || "", life: 0.42, maxLife: 0.42
         }])
     }
 
@@ -399,7 +399,7 @@ QtObject {
 
     function fireTower(tower, target, stats) {
         projectiles = projectiles.concat([{
-            x: tower.x, y: tower.y, targetId: target.id, damage: stats.damage,
+            x: tower.x, y: tower.y, prevX: tower.x, prevY: tower.y, targetId: target.id, damage: stats.damage,
             speed: stats.projectileSpeed, color: stats.color, slow: stats.slow,
             splash: stats.splash, life: 1.15
         }])
@@ -411,6 +411,7 @@ QtObject {
         var actualDamage = Math.max(1, Math.round(damage - enemy.armour))
         enemy.hp -= actualDamage
         enemy.hit = 0.12
+        spawnEffect(enemy.x, enemy.y - enemy.size * 0.7, "#f8fafc", 8, "-" + actualDamage)
         if (slow > 0)
             enemy.slowTime = Math.max(enemy.slowTime, slow)
         if (enemy.hp <= 0) {
@@ -484,6 +485,8 @@ QtObject {
                     }
                 }
             } else {
+                projectile.prevX = projectile.x
+                projectile.prevY = projectile.y
                 projectile.x += dx / distance * travel
                 projectile.y += dy / distance * travel
                 active.push(projectile)
