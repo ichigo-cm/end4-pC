@@ -81,8 +81,13 @@ Item {
                         if (dist === 2) return 0.35
                         return 0.15
                     }
+                    scale: dist === 0 ? 1.035 : dist === 1 ? 1.01 : 1
+                    transformOrigin: Item.Left
+                    font.weight: dist === 0 ? Font.DemiBold : Font.Normal
+                    Behavior on scale { NumberAnimation { duration: 360; easing.type: Easing.OutBack } }
                     color: dist === 0 ? root.activeColor : root.textColor
                     Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+                    Behavior on color { ColorAnimation { duration: 320; easing.type: Easing.OutCubic } }
                 }
             }
         }

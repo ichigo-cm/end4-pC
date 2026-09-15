@@ -147,12 +147,14 @@ Item {
                         }
                     }
 
-                    StyledImage {
+                    AnimatedImage {
                         anchors.fill: parent
                         source: root.displayedArtFilePath
                         fillMode: Image.PreserveAspectCrop
                         cache: false
                         antialiasing: true
+                        asynchronous: true
+                        playing: true
                         sourceSize.width: artBackground.width * 2
                         sourceSize.height: artBackground.height * 2
                     }
@@ -174,12 +176,14 @@ Item {
                         }
                     }
 
-                    StyledImage {
+                    AnimatedImage {
                         anchors.fill: parent
                         source: root.displayedArtFilePath
                         fillMode: Image.PreserveAspectCrop
                         cache: false
                         antialiasing: true
+                        asynchronous: true
+                        playing: true
                         sourceSize.width: artBackground.width * 2
                         sourceSize.height: artBackground.height * 2
                     }

@@ -376,6 +376,37 @@ AbstractBackgroundWidget {
                         }
                     }
 
+                    Repeater {
+                        model: game.effects
+                        delegate: Item {
+                            required property var modelData
+                            readonly property real progress: 1 - (modelData.life / modelData.maxLife)
+                            x: modelData.x - modelData.size / 2
+                            y: modelData.y - modelData.size / 2
+                            width: modelData.size
+                            height: modelData.size
+                            z: 12
+                            rotation: progress * 90
+                            scale: 0.45 + progress * 1.35
+                            opacity: Math.max(0, 1 - progress)
+
+                            Rectangle {
+                                anchors.centerIn: parent
+                                width: parent.width
+                                height: 3
+                                radius: 2
+                                color: modelData.color
+                            }
+                            Rectangle {
+                                anchors.centerIn: parent
+                                width: 3
+                                height: parent.height
+                                radius: 2
+                                color: modelData.color
+                            }
+                        }
+                    }
+
                     Rectangle {
                         id: placementPreview
                         property real previewX: 0
@@ -406,6 +437,29 @@ AbstractBackgroundWidget {
                             placementPreview.previewY = mouse.y
                         }
                         onClicked: function(mouse) { game.handleBoardClick(mouse.x, mouse.y) }
+                    }
+
+                    Rectangle {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        y: 20
+                        width: Math.min(parent.width - 40, bannerLabel.implicitWidth + 36)
+                        height: 34
+                        radius: 5
+                        visible: game.bannerTime > 0 && !game.gameOver
+                        color: game.wave % 5 === 0 ? "#5b1830" : "#163b58"
+                        border.width: 1
+                        border.color: game.wave % 5 === 0 ? "#fb7185" : "#8be9fd"
+                        opacity: Math.min(1, game.bannerTime * 2)
+                        z: 21
+                        Text {
+                            id: bannerLabel
+                            anchors.centerIn: parent
+                            text: game.bannerText
+                            color: "#f4fbff"
+                            font.pixelSize: 13
+                            font.bold: true
+                            font.letterSpacing: 1.2
+                        }
                     }
 
                     Rectangle {

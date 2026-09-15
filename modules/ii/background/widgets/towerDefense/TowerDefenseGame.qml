@@ -26,12 +26,15 @@ QtObject {
     property var enemies: []
     property var towers: []
     property var projectiles: []
+    property var effects: []
     property int nextEnemyId: 1
     property int nextTowerId: 1
     property string buildType: ""
     property int selectedTowerId: -1
     property string message: "Choose a tower, then click clear grass."
     property real messageTime: 4
+    property string bannerText: ""
+    property real bannerTime: 0
 
     readonly property var selectedTower: towerById(selectedTowerId)
     readonly property int highScore: configEntry ? (configEntry.highScore || 0) : 0
@@ -132,7 +135,9 @@ QtObject {
         spawnQueue = queue
         spawnTimer = 0
         phase = "wave"
-        setMessage(wave % 5 === 0 ? "BOSS WAVE " + wave + "!" : "Wave " + wave + " incoming.", 2.2)
+        var waveText = wave % 5 === 0 ? "BOSS WAVE " + wave + "!" : "WAVE " + wave
+        setMessage(waveText + " incoming.", 2.2)
+        showBanner(waveText, wave % 5 === 0 ? 3.0 : 1.8)
     }
 
     function spawnEnemy(type) {
@@ -162,6 +167,7 @@ QtObject {
         enemies = []
         towers = []
         projectiles = []
+        effects = []
         nextEnemyId = 1
         nextTowerId = 1
         buildType = ""
@@ -172,6 +178,17 @@ QtObject {
     function setMessage(text, seconds) {
         message = text
         messageTime = seconds === undefined ? 2 : seconds
+    }
+
+    function showBanner(text, seconds) {
+        bannerText = text
+        bannerTime = seconds === undefined ? 2.2 : seconds
+    }
+
+    function spawnEffect(x, y, color, size) {
+        effects = effects.concat([{
+            x: x, y: y, color: color, size: size || 10, life: 0.42, maxLife: 0.42
+        }])
     }
 
     function nextWaveNow() {
@@ -400,6 +417,7 @@ QtObject {
             enemy.dead = true
             coins += enemy.reward
             kills += 1
+            spawnEffect(enemy.x, enemy.y, enemy.type === "boss" ? "#fb7185" : "#8be9fd", enemy.type === "boss" ? 28 : 14)
         }
     }
 
@@ -453,6 +471,7 @@ QtObject {
             var travel = projectile.speed * delta
             if (distance <= travel + 3) {
                 damageEnemy(target, projectile.damage, projectile.slow)
+                spawnEffect(target.x, target.y, projectile.color, projectile.splash > 0 ? projectile.splash : 9)
                 if (projectile.splash > 0) {
                     for (var j = 0; j < enemies.length; ++j) {
                         var nearby = enemies[j]
@@ -507,6 +526,19 @@ QtObject {
         var delta = 0.033 * speed
         if (messageTime > 0)
             messageTime = Math.max(0, messageTime - delta)
+        if (bannerTime > 0)
+            bannerTime = Math.max(0, bannerTime - delta)
+
+        if (effects.length > 0) {
+            var liveEffects = []
+            for (var effectIndex = 0; effectIndex < effects.length; ++effectIndex) {
+                var effect = effects[effectIndex]
+                effect.life -= delta
+                if (effect.life > 0)
+                    liveEffects.push(effect)
+            }
+            effects = liveEffects
+        }
 
         if (phase === "intermission") {
             intermission -= delta
