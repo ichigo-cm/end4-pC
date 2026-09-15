@@ -543,7 +543,7 @@ AbstractBackgroundWidget {
             x: 198
             y: 245
             width: 218
-            height: 37
+            height: 44
             radius: 4
             color: "#152843"
             border.width: 1
@@ -555,21 +555,25 @@ AbstractBackgroundWidget {
                 width: 94
                 anchors.verticalCenter: parent.verticalCenter
                 text: {
-                    if (game.selectedTower)
-                        return game.towerDefinition(game.selectedTower.type).name + " L" + game.selectedTower.level + "\n" + game.selectedTower.target
+                    if (game.selectedTower) {
+                        const stats = game.towerStats(game.selectedTower)
+                        return game.towerDefinition(game.selectedTower.type).name + " L" + game.selectedTower.level
+                            + "\nDMG " + stats.damage + "  RNG " + Math.round(stats.range)
+                            + "\nATK " + stats.rate.toFixed(2) + "s  " + game.selectedTower.target
+                    }
                     if (game.buildType !== "")
                         return game.towerDefinition(game.buildType).name + "\nclick grass"
                     return "BUILD A TOWER\ndefend the gate"
                 }
                 color: "#d8efff"
-                font.pixelSize: 8
+                font.pixelSize: 7
                 font.bold: true
                 lineHeight: 0.9
             }
 
             PixelButton {
                 x: 103
-                y: 4
+                y: 7
                 width: 36
                 height: 29
                 visible: game.selectedTower !== null
@@ -581,7 +585,7 @@ AbstractBackgroundWidget {
             }
             PixelButton {
                 x: 142
-                y: 4
+                y: 7
                 width: 35
                 height: 29
                 visible: game.selectedTower !== null
@@ -593,7 +597,7 @@ AbstractBackgroundWidget {
             }
             PixelButton {
                 x: 180
-                y: 4
+                y: 7
                 width: 34
                 height: 29
                 visible: game.selectedTower !== null
