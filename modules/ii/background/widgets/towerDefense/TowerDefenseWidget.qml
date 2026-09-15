@@ -71,18 +71,18 @@ AbstractBackgroundWidget {
         id: card
         anchors.fill: parent
         radius: 10
-        color: "#0c1528"
+        color: Appearance.colors.colLayer0
         border.width: 2
-        border.color: "#315172"
+        border.color: Appearance.colors.colLayer0Border
         clip: true
 
         Rectangle {
             anchors.fill: parent
             anchors.margins: 3
             radius: 7
-            color: "#101d33"
+            color: Appearance.colors.colLayer1
             border.width: 1
-            border.color: "#203a57"
+            border.color: Appearance.colors.colOutline
         }
 
         // Header: a deliberately dense arcade cabinet status strip.
@@ -93,9 +93,9 @@ AbstractBackgroundWidget {
             width: parent.width - 16
             height: 28
             radius: 4
-            color: "#152843"
+            color: Appearance.colors.colPrimaryContainer
             border.width: 1
-            border.color: "#35577a"
+            border.color: Appearance.colors.colOutline
 
             Text {
                 x: 8
