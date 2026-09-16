@@ -183,6 +183,16 @@ AbstractBackgroundWidget {
                     anchors.fill: parent
                     clip: true
 
+                    Image {
+                        anchors.fill: parent
+                        source: Qt.resolvedUrl("assets/battlefield.svg")
+                        sourceSize.width: 420
+                        sourceSize.height: 196
+                        fillMode: Image.Stretch
+                        smooth: true
+                        z: -2
+                    }
+
                     // Checkerboard grass makes placement cells easy to read without assets.
                     Repeater {
                         model: Math.ceil(battlefield.width / game.gridSize) * Math.ceil(battlefield.height / game.gridSize)

@@ -70,26 +70,65 @@ Item {
             maximumFlickVelocity: 0
             boundsBehavior: Flickable.StopAtBounds
 
-            delegate: StyledText {
+            delegate: Item {
                 id: lyricLine
                 required property int index
                 required property var modelData
                 width: lyricViewport.width
-                horizontalAlignment: root.textAlignment
-                wrapMode: Text.WordWrap
-                text: modelData.text || "♪"
+                implicitHeight: wordFlow.implicitHeight + 8
                 readonly property int dist: Math.abs(index - lyricViewport.currentIndex)
-                font.pixelSize: dist === 0
-                    ? Appearance.font.pixelSize.normal
-                    : dist === 1 ? Appearance.font.pixelSize.small : Appearance.font.pixelSize.smaller
-                font.weight: dist === 0 ? Font.DemiBold : Font.Normal
+                readonly property var wordModel: (modelData.words && modelData.words.length > 0)
+                    ? modelData.words : [{ time: modelData.time, text: modelData.text || "♪" }]
                 opacity: dist === 0 ? 1 : dist === 1 ? 0.62 : dist === 2 ? 0.34 : 0.14
                 scale: dist === 0 ? 1.035 : dist === 1 ? 1.01 : 1
                 transformOrigin: Item.Left
-                color: dist === 0 ? root.activeColor : root.textColor
                 Behavior on opacity { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
                 Behavior on scale { NumberAnimation { duration: 380; easing.type: Easing.OutCubic } }
-                Behavior on color { ColorAnimation { duration: 320; easing.type: Easing.OutCubic } }
+
+                Flow {
+                    id: wordFlow
+                    width: parent.width
+                    spacing: 0
+                    layoutDirection: root.textAlignment === Text.AlignRight ? Qt.RightToLeft : Qt.LeftToRight
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    Repeater {
+                        model: lyricLine.wordModel
+                        delegate: Item {
+                            required property int index
+                            required property var modelData
+                            implicitWidth: wordText.implicitWidth + 5
+                            implicitHeight: wordText.implicitHeight + 6
+
+                            Rectangle {
+                                anchors.fill: parent
+                                anchors.margins: 1
+                                radius: 5
+                                color: root.activeColor
+                                opacity: lyricLine.dist === 0 &&
+                                    (modelData.time <= LyricsService.playbackPosition) &&
+                                    (LyricsService.activeWordIndex === index || lyricLine.wordModel.length === 1)
+                                    ? 0.18 : 0
+                                Behavior on opacity { NumberAnimation { duration: 110 } }
+                            }
+
+                            StyledText {
+                                id: wordText
+                                anchors.centerIn: parent
+                                text: modelData.text
+                                horizontalAlignment: Text.AlignHCenter
+                                font.pixelSize: lyricLine.dist === 0
+                                    ? Appearance.font.pixelSize.normal
+                                    : lyricLine.dist === 1 ? Appearance.font.pixelSize.small : Appearance.font.pixelSize.smaller
+                                font.weight: lyricLine.dist === 0 ? Font.DemiBold : Font.Normal
+                                color: lyricLine.dist === 0 &&
+                                    (LyricsService.activeWordIndex === index || lyricLine.wordModel.length === 1)
+                                    ? root.activeColor : root.textColor
+                                Behavior on color { ColorAnimation { duration: 110; easing.type: Easing.OutCubic } }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
