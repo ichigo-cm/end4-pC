@@ -186,3 +186,33 @@ If continuing from another account, first inspect the current branch and the lat
 7. Push changes to the fork branch and update the PR.
 
 The user wants continued creative improvement, but runtime validation is now the priority because the latest changes affect both the lyrics data contract and the QML renderer.
+
+LATEST PASS — LIVE SIDEBAR LIQUID-GLASS REWORK
+----------------------------------------------
+The newly attached specification required locating the actual rendered lyrics/media component instead of guessing. The sandbox has no ~/.config/quickshell checkout, so the available repository checkout was traced directly.
+
+The live sidebar composition is:
+modules/ii/sidebarLeft/SidebarLeftContent.qml -> SidebarPlayerControl.qml -> Lyrics.qml
+
+The actual visible lyrics/media surface edited in this pass is:
+modules/ii/sidebarLeft/SidebarPlayerControl.qml
+
+The component already owns MPRIS player bindings, downloaded/animated album artwork, playback controls, lyrics, visualizer fallback, player switching, and lyrics restart behavior. Those behaviors were preserved.
+
+The sidebar player now contains a native QML liquid-glass visual stack:
+- Dynamic palette field using palette.primaryContainer -> palette.tertiaryContainer -> palette.primaryContainer.
+- Native Qt5Compat.GraphicalEffects FastBlur.
+- Exact blur radius: 64.
+- Heavy rounded geometry with radius: 24.
+- Translucent glass fill: Qt.rgba(0, 0, 0, 0.2).
+- Fine luminous border: Qt.rgba(255, 255, 255, 0.09).
+- Existing artwork blur remains available as an additional user-configurable media treatment.
+- Existing lyrics, MPRIS, controls, and AnimatedImage children remain above the glass layer.
+
+The sandbox does not contain quickshell or qs, and it also does not contain ~/.config/quickshell, so `quickshell -r` could not be run here. The user’s local environment must perform the final live reload and check for import/runtime compatibility.
+
+For this pass, inspect:
+- `git diff --check`
+- `rg -n "FastBlur|radius: 64|radius: 24|palette.primaryContainer|palette.tertiaryContainer|Qt.rgba" modules/ii/sidebarLeft/SidebarPlayerControl.qml`
+
+If the target Quickshell reports a graphical-effects import issue, keep the native Qt/QML approach and use the installed equivalent while preserving radius 64, palette bindings, rgba glass fill, and rgba border.
