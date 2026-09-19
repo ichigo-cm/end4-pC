@@ -21,7 +21,14 @@ QtObject {
     property int completedWaves: 0
     property int coins: 110
     property int lives: 20
+    readonly property int maxLives: 20
     property int kills: 0
+    property real commandEnergy: 100
+    readonly property real maxCommandEnergy: 100
+    property real pulseCooldown: 0
+    property real repairCooldown: 0
+    property real overdriveTime: 0
+    property string abilityMessage: "COMMAND DECK ONLINE"
     property string phase: "intermission" // intermission | wave
     property real intermission: 0.8
     property real spawnTimer: 0
@@ -164,6 +171,11 @@ QtObject {
         coins = 110
         lives = 20
         kills = 0
+        commandEnergy = maxCommandEnergy
+        pulseCooldown = 0
+        repairCooldown = 0
+        overdriveTime = 0
+        abilityMessage = "COMMAND DECK ONLINE"
         phase = "intermission"
         intermission = 0.8
         spawnTimer = 0
@@ -187,6 +199,61 @@ QtObject {
     function playGameSound(name) {
         if (soundEnabled && Audio?.playSystemSound)
             Audio.playSystemSound(name)
+    }
+
+    function abilityReady(cost, cooldown) {
+        return !gameOver && !paused && commandEnergy >= cost && cooldown <= 0
+    }
+
+    function usePulse() {
+        if (!abilityReady(35, pulseCooldown)) {
+            setMessage(commandEnergy < 35 ? "Need 35 command energy." : "Pulse recharging.", 1.2)
+            return
+        }
+        commandEnergy -= 35
+        pulseCooldown = 7
+        var hitCount = 0
+        for (var i = 0; i < enemies.length; ++i) {
+            var enemy = enemies[i]
+            if (!enemy.dead) {
+                damageEnemy(enemy, enemy.type === "boss" ? 48 : 90, 0.8)
+                spawnEffect(enemy.x, enemy.y, "#67e8f9", enemy.type === "boss" ? 26 : 16, "PULSE")
+                hitCount += 1
+            }
+        }
+        showBanner("NOVA PULSE", 1.2)
+        abilityMessage = "NOVA PULSE // " + hitCount + " CONTACTS"
+        playGameSound("complete")
+    }
+
+    function useRepair() {
+        if (!abilityReady(45, repairCooldown)) {
+            setMessage(commandEnergy < 45 ? "Need 45 command energy." : "Repair recharging.", 1.2)
+            return
+        }
+        if (lives >= maxLives) {
+            setMessage("Core integrity already full.", 1.2)
+            return
+        }
+        commandEnergy -= 45
+        repairCooldown = 12
+        lives = Math.min(maxLives, lives + 5)
+        spawnEffect(boardWidth - 12, 26, "#86efac", 30, "+CORE")
+        abilityMessage = "CORE REPAIR // +5 INTEGRITY"
+        setMessage("Emergency repair restored the gate.", 1.8)
+        playGameSound("complete")
+    }
+
+    function useOverdrive() {
+        if (!abilityReady(60, overdriveTime)) {
+            setMessage(commandEnergy < 60 ? "Need 60 command energy." : "Overdrive already active.", 1.2)
+            return
+        }
+        commandEnergy -= 60
+        overdriveTime = 8
+        abilityMessage = "OVERDRIVE // FIRE RATE BOOSTED"
+        showBanner("OVERDRIVE", 1.2)
+        playGameSound("dialog-warning")
     }
 
     function showBanner(text, seconds) {
@@ -426,6 +493,7 @@ QtObject {
             return
         var actualDamage = Math.max(1, Math.round(damage - enemy.armour))
         enemy.hp -= actualDamage
+        commandEnergy = Math.min(maxCommandEnergy, commandEnergy + 1.5)
         enemy.hit = 0.12
         spawnEffect(enemy.x, enemy.y - enemy.size * 0.7, "#f8fafc", 8, "-" + actualDamage)
         if (slow > 0)
@@ -434,6 +502,7 @@ QtObject {
             enemy.dead = true
             coins += enemy.reward
             kills += 1
+            commandEnergy = Math.min(maxCommandEnergy, commandEnergy + (enemy.type === "boss" ? 18 : 5))
             spawnEffect(enemy.x, enemy.y, enemy.type === "boss" ? "#fb7185" : "#8be9fd", enemy.type === "boss" ? 28 : 14)
         }
     }
@@ -515,7 +584,7 @@ QtObject {
     function updateTowers(delta) {
         for (var i = 0; i < towers.length; ++i) {
             var tower = towers[i]
-            tower.cooldown = Math.max(0, tower.cooldown - delta)
+            tower.cooldown = Math.max(0, tower.cooldown - delta * (overdriveTime > 0 ? 1.8 : 1))
             var stats = towerStats(tower)
             var target = targetFor(tower, stats)
             if (target && tower.cooldown <= 0) {
@@ -548,6 +617,11 @@ QtObject {
             messageTime = Math.max(0, messageTime - delta)
         if (bannerTime > 0)
             bannerTime = Math.max(0, bannerTime - delta)
+        pulseCooldown = Math.max(0, pulseCooldown - delta)
+        repairCooldown = Math.max(0, repairCooldown - delta)
+        overdriveTime = Math.max(0, overdriveTime - delta)
+        if (phase === "wave")
+            commandEnergy = Math.min(maxCommandEnergy, commandEnergy + delta * 1.8)
 
         if (effects.length > 0) {
             var liveEffects = []

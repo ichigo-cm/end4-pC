@@ -12,7 +12,7 @@ AbstractBackgroundWidget {
     hoverEnabled: true
 
     implicitWidth: 430
-    implicitHeight: 346
+    implicitHeight: 394
 
     component PixelButton: Rectangle {
         id: pixelButton
@@ -715,6 +715,85 @@ AbstractBackgroundWidget {
                     else
                         game.restart()
                 }
+            }
+        }
+
+        Rectangle {
+            id: commandDeck
+            x: 14
+            y: 343
+            width: parent.width - 28
+            height: 42
+            radius: 5
+            color: "#0a1325"
+            border.width: 1
+            border.color: game.overdriveTime > 0 ? "#f0abfc" : "#284563"
+
+            Text {
+                x: 7
+                y: 4
+                text: game.overdriveTime > 0 ? "OVERDRIVE ACTIVE" : game.abilityMessage
+                color: game.overdriveTime > 0 ? "#f0abfc" : "#8be9fd"
+                font.pixelSize: 7
+                font.bold: true
+                font.letterSpacing: 0.8
+            }
+
+            Rectangle {
+                x: 7
+                y: 16
+                width: 73
+                height: 4
+                radius: 2
+                color: "#16253d"
+                Rectangle {
+                    width: parent.width * game.commandEnergy / game.maxCommandEnergy
+                    height: parent.height
+                    radius: 2
+                    color: game.overdriveTime > 0 ? "#f0abfc" : "#67e8f9"
+                }
+            }
+            Text {
+                x: 7
+                y: 23
+                text: "ENERGY " + Math.floor(game.commandEnergy) + "%"
+                color: "#7fa4c7"
+                font.pixelSize: 7
+            }
+
+            PixelButton {
+                x: 92
+                y: 5
+                width: 91
+                height: 30
+                label: "PULSE"
+                sublabel: game.pulseCooldown > 0 ? Math.ceil(game.pulseCooldown) + "s" : "35 EN"
+                accent: "#67e8f9"
+                enabledButton: game.commandEnergy >= 35 && game.pulseCooldown <= 0 && !game.gameOver
+                clickAction: function() { game.usePulse() }
+            }
+            PixelButton {
+                x: 188
+                y: 5
+                width: 91
+                height: 30
+                label: "REPAIR"
+                sublabel: game.repairCooldown > 0 ? Math.ceil(game.repairCooldown) + "s" : "45 EN"
+                accent: "#86efac"
+                enabledButton: game.commandEnergy >= 45 && game.repairCooldown <= 0 && game.lives < game.maxLives && !game.gameOver
+                clickAction: function() { game.useRepair() }
+            }
+            PixelButton {
+                x: 284
+                y: 5
+                width: 111
+                height: 30
+                label: "OVERDRIVE"
+                sublabel: game.overdriveTime > 0 ? Math.ceil(game.overdriveTime) + "s ACTIVE" : "60 EN"
+                active: game.overdriveTime > 0
+                accent: "#f0abfc"
+                enabledButton: game.commandEnergy >= 60 && game.overdriveTime <= 0 && !game.gameOver
+                clickAction: function() { game.useOverdrive() }
             }
         }
     }
