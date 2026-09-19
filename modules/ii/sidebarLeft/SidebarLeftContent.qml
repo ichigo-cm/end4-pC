@@ -73,7 +73,7 @@ Item {
                 id: swipeView
                 anchors.fill: parent
                 spacing: 10
-                currentIndex: tabBar.currentIndex
+                currentIndex: verticalTabBar.currentIndex
 
                 clip: true
                 layer.enabled: true

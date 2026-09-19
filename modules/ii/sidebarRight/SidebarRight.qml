@@ -40,7 +40,7 @@ Scope {
 
         Timer {
             id: closeAnimTimer
-            interval: 150
+            interval: Appearance.animation.sidebarSlideExit.duration
             onTriggered: panelWindow.reallyVisible = false
         }
 

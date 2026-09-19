@@ -127,10 +127,11 @@ Item {
         anchors.fill: parent
         implicitHeight: parent.height - Appearance.sizes.hyprlandGapsOut * 2
         implicitWidth: sidebarWidth - Appearance.sizes.hyprlandGapsOut * 2
-        color: Appearance.colors.colLayer0
+        color: Appearance.colors.shellSurface
         border.width: 1
-        border.color: Appearance.colors.colLayer0Border
-        radius: Appearance.rounding.screenRounding - Appearance.sizes.hyprlandGapsOut + 5
+        border.color: Appearance.colors.shellBorder
+        radius: Appearance.rounding.shell - Appearance.sizes.hyprlandGapsOut + 3
+        clip: true
 
         ColumnLayout {
             anchors.fill: parent
@@ -152,8 +153,8 @@ Item {
                         Rectangle {
                             id: sysRect
                             anchors.fill: parent
-                            radius: Config.options.hyprland.decoration.rounding - 2
-                            color: Appearance.colors.colLayer1
+                            radius: Appearance.rounding.card
+                            color: Appearance.colors.shellSurfaceRaised
 
                             Rectangle {
                                 id: wallpaperRect

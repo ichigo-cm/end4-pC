@@ -231,3 +231,22 @@ Latest commit:
 d00d2fd feat: add command deck abilities and overdrive mode
 
 This is a gameplay-system change, not only a visual change. The existing towers, targeting, waves, bosses, upgrades, projectiles, effects, audio, and restart flow remain intact.
+
+WHOLE-DOTFILES VISUAL SYSTEM PASS — GAME EXCLUDED
+-------------------------------------------------
+The user asked to leave the game aside and improve the visual quality of the whole dotfiles system. The game files under modules/ii/background/widgets/towerDefense were intentionally not changed in this pass.
+
+The audit identified the main issue as visual drift between shell surfaces rather than a lack of isolated effects. A shared visual vocabulary was added and applied to major surfaces:
+
+- Appearance.qml now exposes semantic shell colors: shellSurface, shellSurfaceRaised, shellSurfaceElevated, shellText, shellTextMuted, shellBorder, shellAccent, shellAccentContainer, shellScrim, and shellError.
+- Appearance.qml now exposes semantic radii: shell, card, control, dialog, and pill while preserving all existing names.
+- StyledRectangle.qml now gives uncustomized background/pane/group/control rectangles coherent semantic radius and background-border defaults.
+- SidebarLeft.qml now uses the shared shell surface/border/radius and detached mode has a matching rounded bordered elevated frame.
+- SidebarRightContent.qml now uses the shared shell surface/border/radius, clips content to the rounded frame, and normalizes the banner card radius/surface.
+- SidebarRight.qml now derives close cleanup timing from the shared sidebar exit animation.
+- QuickSliders.qml, CenterWidgetGroup.qml, and BottomWidgetGroup.qml now use the same raised card surface, radius, and border language.
+- BarContent.qml now uses the shared shell background and border tokens.
+- SidebarLeftContent.qml corrected the tab synchronization binding from the undefined tabBar to verticalTabBar.
+- BottomWidgetGroup.qml corrected transition direction logic to use declared selectedTab instead of undefined currentTab.
+
+Runtime validation still must be performed on the user’s Arch installation because the sandbox has no quickshell, qs, or qmllint executable. Test left/right sidebars, detached left sidebar, bar corner styles, Niri and Hyprland, short displays, and settings/widgets after pulling the branch.

@@ -9,8 +9,10 @@ import QtQuick.Layouts
 
 Rectangle {
     id: root
-    radius: Appearance.rounding.normal
-    color: Appearance.colors.colLayer1
+    radius: Appearance.rounding.card
+    color: Appearance.colors.shellSurfaceRaised
+    border.width: 1
+    border.color: Appearance.colors.shellBorder
 
     NotificationList {
         anchors.fill: parent

@@ -16,8 +16,10 @@ Rectangle {
 
     implicitWidth: contentItem.implicitWidth + root.horizontalPadding * 2
     implicitHeight: contentItem.implicitHeight + root.verticalPadding * 2
-    radius: Appearance.rounding.normal
-    color: Appearance.colors.colLayer1
+    radius: Appearance.rounding.card
+    color: Appearance.colors.shellSurfaceRaised
+    border.width: 1
+    border.color: Appearance.colors.shellBorder
     property real verticalPadding: 4
     property real horizontalPadding: 12
 

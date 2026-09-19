@@ -209,10 +209,10 @@ Scope { // Scope
                 anchors.topMargin: Appearance.sizes.hyprlandGapsOut
                 width: panelWindow.sidebarWidth - Appearance.sizes.hyprlandGapsOut - Appearance.sizes.elevationMargin
                 height: parent.height - Appearance.sizes.hyprlandGapsOut * 2
-                color: Appearance.colors.colLayer0
+                color: Appearance.colors.shellSurface
                 border.width: 1
-                border.color: Appearance.colors.colLayer0Border
-                radius: Appearance.rounding.screenRounding - Appearance.sizes.hyprlandGapsOut + 1
+                border.color: Appearance.colors.shellBorder
+                radius: Appearance.rounding.shell - Appearance.sizes.hyprlandGapsOut + 3
 
                 readonly property bool animatedEntrance: panelWindow.animatedEntrance
                 readonly property bool sidebarOpen: GlobalStates.sidebarLeftOpen
@@ -275,10 +275,19 @@ Scope { // Scope
                 if (!visible) GlobalStates.sidebarLeftOpen = false;
             }
             
+            StyledRectangularShadow {
+                target: detachedSidebarBackground
+                radius: detachedSidebarBackground.radius
+            }
+
             Rectangle {
                 id: detachedSidebarBackground
                 anchors.fill: parent
-                color: Appearance.colors.colLayer0
+                color: Appearance.colors.shellSurface
+                border.width: 1
+                border.color: Appearance.colors.shellBorder
+                radius: Appearance.rounding.shell
+                clip: true
 
                 Keys.onPressed: (event) => {
                     if (event.modifiers === Qt.ControlModifier) {

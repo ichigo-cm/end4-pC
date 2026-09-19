@@ -212,6 +212,17 @@ Singleton {
         property color colErrorContainerHover: ColorUtils.mix(m3colors.m3errorContainer, m3colors.m3onErrorContainer, 0.90)
         property color colErrorContainerActive: ColorUtils.mix(m3colors.m3errorContainer, m3colors.m3onErrorContainer, 0.70)
         property color colOnErrorContainer: m3colors.m3onErrorContainer
+        // Shell-wide semantic aliases. Keep the existing Material names stable.
+        property color shellSurface: colLayer0
+        property color shellSurfaceRaised: colLayer1
+        property color shellSurfaceElevated: colLayer2
+        property color shellText: colOnLayer0
+        property color shellTextMuted: colSubtext
+        property color shellBorder: colLayer0Border
+        property color shellAccent: colPrimary
+        property color shellAccentContainer: colPrimaryContainer
+        property color shellScrim: colScrim
+        property color shellError: colError
     }
 
     rounding: QtObject {
@@ -225,6 +236,11 @@ Singleton {
         property int full: 9999
         property int screenRounding: large
         property int windowRounding: 18
+        property int shell: screenRounding
+        property int card: normal
+        property int control: small
+        property int dialog: large
+        property int pill: full
     }
 
     font: QtObject {
