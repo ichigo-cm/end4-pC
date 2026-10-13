@@ -163,7 +163,7 @@ Item {
             }
         }
 
-        Image {
+        AnimatedImage {
             id: blurredArt
             anchors.fill: parent
             source: root.displayedArtFilePath

@@ -520,9 +520,10 @@ AbstractBackgroundWidget {
                             }
                         }
 
-                        Image {
+                        AnimatedImage {
                             anchors.fill: parent
                             source: Config.options.sidebar.bannerImage || Config.options.background.wallpaperPath
+                            playing: true
                             fillMode: Image.PreserveAspectCrop
                             asynchronous: true
                             cache: false

@@ -172,9 +172,10 @@ AbstractBackgroundWidget {
                     }
                 }
 
-                StyledImage {
+                AnimatedImage {
                     anchors.fill: parent
                     source: root.displayedArtFilePath
+                    playing: true
                     fillMode: Image.PreserveAspectCrop
                     cache: false
                     antialiasing: true
@@ -293,7 +294,7 @@ AbstractBackgroundWidget {
                         }
                     }
 
-                    StyledImage {
+                    AnimatedImage {
                         anchors.fill: parent
                         source: root.displayedArtFilePath
                         fillMode: Image.PreserveAspectCrop
@@ -437,7 +438,7 @@ AbstractBackgroundWidget {
                         }
                     }
 
-                    StyledImage {
+                    AnimatedImage {
                         anchors.fill: parent
                         source: root.displayedArtFilePath
                         fillMode: Image.PreserveAspectCrop
@@ -582,7 +583,7 @@ AbstractBackgroundWidget {
                             }
                         }
 
-                        StyledImage {
+                        AnimatedImage {
                             anchors.fill: parent
                             source: root.displayedArtFilePath
                             fillMode: Image.PreserveAspectCrop
@@ -799,7 +800,7 @@ AbstractBackgroundWidget {
                                 }
                             }
 
-                            StyledImage {
+                            AnimatedImage {
                                 anchors.fill: parent
                                 source: root.displayedArtFilePath
                                 fillMode: Image.PreserveAspectCrop

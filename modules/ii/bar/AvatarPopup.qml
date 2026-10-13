@@ -155,7 +155,7 @@ PopupWindow {
         id: avatarModel
         folder: root.hasFolder ? Qt.resolvedUrl(Config.options.profile.avatarPath) : ""
         showDirs: false
-        nameFilters: ["*.png", "*.svg", "*.jpg", "*.jpeg", "*.webp"]
+        nameFilters: ["*.png", "*.svg", "*.jpg", "*.jpeg", "*.gif", "*.webp"]
     }
 
     Item {
@@ -372,9 +372,10 @@ PopupWindow {
                                     NumberAnimation { duration: 220; easing.type: Easing.OutBack; easing.overshoot: 2 }
                                 }
 
-                                Image {
+                                AnimatedImage {
                                     anchors.fill: parent
                                     source: tile.filePath
+                                    playing: true
                                     fillMode: Image.PreserveAspectCrop
                                     asynchronous: true
                                     cache: true

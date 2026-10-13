@@ -18,11 +18,12 @@ Rectangle {
     radius: width / 2
     color: avatarImage.status !== Image.Ready ? Appearance.colors.colPrimaryContainer : Appearance.colors.colLayer1
 
-    Image {
+    AnimatedImage {
         id: avatarImage
         anchors.fill: parent
         anchors.margins: root.border.width
         source: `file://${root.picturePath}`
+        playing: true
         sourceSize.width: width * 2
         sourceSize.height: height * 2
         fillMode: Image.PreserveAspectCrop

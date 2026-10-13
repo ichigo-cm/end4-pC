@@ -501,7 +501,7 @@ Item {
                     radius: width / 2
                     color: ui.container
 
-                    Image {
+                    AnimatedImage {
                         id: avatarImage
                         anchors.fill: parent
                         source: Config.options.profile.avatarPath !== ""

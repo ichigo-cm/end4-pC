@@ -63,7 +63,7 @@ Item {
         id: avatarFolderModel
         folder: root.avatarFolder !== "" ? Qt.resolvedUrl(root.avatarFolder) : ""
         showDirs: false
-        nameFilters: ["*.png", "*.svg", "*.jpg", "*.jpeg", "*.webp", "*.PNG", "*.JPG", "*.JPEG", "*.WEBP"]
+        nameFilters: ["*.png", "*.svg", "*.jpg", "*.jpeg", "*.gif", "*.webp", "*.PNG", "*.JPG", "*.JPEG", "*.GIF", "*.WEBP"]
     }
 
     function shiftMonth(delta) {
@@ -485,12 +485,13 @@ Item {
                                                         }
                                                     }
 
-                                                    Image {
+                                                    AnimatedImage {
                                                         id: cellImage
                                                         anchors.centerIn: parent
                                                         width: 48
                                                         height: 48
                                                         source: avatarCell.filePath
+                                                        playing: true
                                                         fillMode: Image.PreserveAspectCrop
                                                         asynchronous: true
                                                         cache: true

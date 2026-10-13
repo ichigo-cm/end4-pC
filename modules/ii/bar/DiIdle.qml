@@ -28,7 +28,7 @@ Item {
         radius: width / 2
         color: Appearance.colors.colPrimaryContainer
 
-        Image {
+        AnimatedImage {
             id: avatarImage
             anchors.fill: parent
             source: Config.options.profile.avatarPath !== ""

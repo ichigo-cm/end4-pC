@@ -279,9 +279,10 @@ Item {
                             }
                         }
 
-                        StyledImage {
+                        AnimatedImage {
                             anchors.fill: parent
                             source: root.displayedArtFilePath
+                            playing: true
                             fillMode: Image.PreserveAspectCrop
                             cache: false
                             antialiasing: true

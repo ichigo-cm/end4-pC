@@ -46,7 +46,7 @@ Scope {
             return "file://" + wallPath.substring(0, lastSlash)
         }
         showDirs: false
-        nameFilters: ["*.jpg", "*.jpeg", "*.png", "*.webp"]
+        nameFilters: ["*.jpg", "*.jpeg", "*.png", "*.gif", "*.webp"]
     }
 
     property int carouselExtraCount: 5

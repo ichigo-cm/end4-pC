@@ -97,7 +97,7 @@ ContentPage {
         id: avatarFolderModel
         folder: Config.options.profile.avatarPath !== "" ? Qt.resolvedUrl(Config.options.profile.avatarPath) : ""
         showDirs: false
-        nameFilters: ["*.png", "*.svg", "*.jpg", "*.jpeg", "*.webp"]
+        nameFilters: ["*.png", "*.svg", "*.jpg", "*.jpeg", "*.gif", "*.webp"]
     }
 
     Process {
@@ -127,7 +127,7 @@ ContentPage {
                 if (!Array.isArray(data.tree)) throw new Error("unexpected response: " + JSON.stringify(data))
 
                 const prefix = "presets/"
-                const imageExt = /\.(png|jpe?g|webp)$/i
+                const imageExt = /\.(png|jpe?g|gif|webp)$/i
                 const groups = {}
 
                 for (const entry of data.tree) {
@@ -346,10 +346,11 @@ ContentPage {
 
                                 property bool isSelected: FileUtils.trimFileProtocol(filePath.toString()) === Config.options.profile.avatarPicture
 
-                                Image {
+                                AnimatedImage {
                                     id: avatarImage
                                     anchors.fill: parent
                                     source: filePath
+                                    playing: true
                                     fillMode: Image.PreserveAspectCrop
                                     sourceSize.width: avatarImage.width * 2
                                     sourceSize.height: avatarImage.height * 2

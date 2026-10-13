@@ -131,7 +131,7 @@ Item {
         }
 
         // Blur art 
-        Image {
+        AnimatedImage {
             id: blurredArt
             anchors.fill: parent
             source: root.displayedArtFilePath
@@ -183,7 +183,7 @@ Item {
                     }
                 }
 
-                StyledImage {
+                AnimatedImage {
                     anchors.fill: parent
                     source: root.displayedArtFilePath
                     fillMode: Image.PreserveAspectCrop

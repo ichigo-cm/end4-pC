@@ -104,7 +104,7 @@ Item {
         radius: Appearance.rounding.normal
         clip: true
 
-        Image {
+        AnimatedImage {
             id: blurArtSource
             anchors.fill: parent
             source: root.displayedArtFilePath
@@ -163,7 +163,7 @@ Item {
                         }
                     }
 
-                    StyledImage {
+                    AnimatedImage {
                         anchors.fill: parent
                         source: root.displayedArtFilePath
                         fillMode: Image.PreserveAspectCrop
@@ -190,7 +190,7 @@ Item {
                         }
                     }
 
-                    StyledImage {
+                    AnimatedImage {
                         anchors.fill: parent
                         source: root.displayedArtFilePath
                         fillMode: Image.PreserveAspectCrop

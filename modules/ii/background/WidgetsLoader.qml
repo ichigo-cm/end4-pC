@@ -19,6 +19,7 @@ import qs.modules.ii.background.widgets.usercard
 import qs.modules.ii.background.widgets.notes
 import qs.modules.ii.background.widgets.todo
 import qs.modules.ii.background.widgets.timers
+import qs.modules.ii.background.widgets.towerDefense
 import qs.modules.ii.background.widgets.customtext
 
 Item {
@@ -48,6 +49,7 @@ Item {
             { key: "userCard" },
             { key: "todo" },
             { key: "timers" },
+            { key: "towerDefense" },
             { key: "customText" },
         ]
 
@@ -80,6 +82,7 @@ Item {
                     case "userCard":    return userCardComp
                     case "todo":        return todoComp
                     case "timers":      return timersComp
+                    case "towerDefense": return towerDefenseComp
                     case "customText":  return customTextComp
                 }
                 return null
@@ -272,6 +275,17 @@ Item {
     Component {
         id: customTextComp
         CustomTextWidget {
+            screenWidth: root.screen.width
+            screenHeight: root.screen.height
+            scaledScreenWidth: root.screen.width
+            scaledScreenHeight: root.screen.height
+            wallpaperScale: 1
+            wallpaperItem: root.wallpaperItem
+        }
+    }
+    Component {
+        id: towerDefenseComp
+        TowerDefenseWidget {
             screenWidth: root.screen.width
             screenHeight: root.screen.height
             scaledScreenWidth: root.screen.width

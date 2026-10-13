@@ -249,7 +249,7 @@ Item {
                                 }
                             }
 
-                            StyledImage {
+                            AnimatedImage {
                                 id: bannerImage
                                 x: -wallpaperRect.overflowX * wallpaperRect.focusX
                                 y: -wallpaperRect.overflowY * wallpaperRect.focusY
@@ -259,6 +259,7 @@ Item {
                                 source: Config.options.sidebar.bannerImage !== "" 
                                     ? Config.options.sidebar.bannerImage 
                                     : Config.options.background.wallpaperPath
+                                playing: true
                                 cache: false
                                 antialiasing: true
                                 sourceSize.width: wallpaperRect.width * 2
