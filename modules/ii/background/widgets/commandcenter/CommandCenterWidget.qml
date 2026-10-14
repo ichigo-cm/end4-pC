@@ -335,28 +335,28 @@ AbstractBackgroundWidget {
                 spacing: 8
                 QuickAction {
                     Layout.fillWidth: true
-                    icon: "terminal"
+                    actionIcon: "terminal"
                     label: "TERMINAL"
                     description: "Open terminal"
                     onTriggered: root.launchConfigured(Config.options.apps.terminal)
                 }
                 QuickAction {
                     Layout.fillWidth: true
-                    icon: "tune"
+                    actionIcon: "tune"
                     label: "MIXER"
                     description: "Open volume mixer"
                     onTriggered: root.launchConfigured(Config.options.apps.volumeMixer)
                 }
                 QuickAction {
                     Layout.fillWidth: true
-                    icon: "monitor_heart"
+                    actionIcon: "monitor_heart"
                     label: "PROCESSES"
                     description: "Open task manager"
                     onTriggered: root.launchConfigured(Config.options.apps.taskManager)
                 }
                 QuickAction {
                     Layout.fillWidth: true
-                    icon: TimerService.pomodoroBreak ? "coffee" : "timer"
+                    actionIcon: TimerService.pomodoroBreak ? "coffee" : "timer"
                     label: TimerService.pomodoroRunning ? "PAUSE FOCUS" : "START FOCUS"
                     description: `${TimerService.pomodoroBreak ? "BREAK" : "FOCUS"} · ${TimerService.formatSeconds(TimerService.pomodoroSecondsLeft)}`
                     altAction: () => TimerService.resetPomodoro()
@@ -365,7 +365,7 @@ AbstractBackgroundWidget {
                 }
                 QuickAction {
                     Layout.fillWidth: true
-                    icon: "lock"
+                    actionIcon: "lock"
                     label: "LOCK"
                     description: "Lock this session"
                     onTriggered: Session.lock()
@@ -465,7 +465,7 @@ AbstractBackgroundWidget {
 
     component QuickAction: RippleButton {
         id: action
-        property string icon: ""
+        property string actionIcon: ""
         property string label: ""
         property string description: ""
         signal triggered()
@@ -476,7 +476,7 @@ AbstractBackgroundWidget {
             spacing: 7
             MaterialSymbol {
                 Layout.alignment: Qt.AlignVCenter
-                text: action.icon
+                text: action.actionIcon
                 iconSize: 17
                 color: Appearance.colors.colPrimary
             }
