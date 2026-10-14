@@ -353,6 +353,15 @@ AbstractBackgroundWidget {
                 }
                 QuickAction {
                     Layout.fillWidth: true
+                    icon: TimerService.pomodoroBreak ? "coffee" : "timer"
+                    label: TimerService.pomodoroRunning ? "PAUSE FOCUS" : "START FOCUS"
+                    description: `${TimerService.pomodoroBreak ? "BREAK" : "FOCUS"} · ${TimerService.formatSeconds(TimerService.pomodoroSecondsLeft)}`
+                    altAction: () => TimerService.resetPomodoro()
+                    onTriggered: TimerService.togglePomodoro()
+                    StyledToolTip { text: "Click to start or pause · right-click to reset" }
+                }
+                QuickAction {
+                    Layout.fillWidth: true
                     icon: "lock"
                     label: "LOCK"
                     description: "Lock this session"
