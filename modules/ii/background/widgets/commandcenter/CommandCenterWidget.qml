@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Hyprland
 import qs
 import qs.services
 import qs.modules.common
@@ -19,7 +18,7 @@ AbstractBackgroundWidget {
     implicitWidth: 690
     implicitHeight: 430
     readonly property var player: MprisController.activePlayer
-    readonly property int activeWorkspace: Math.max(1, Hyprland.monitorFor(root.screen)?.activeWorkspace?.id ?? 1)
+    readonly property int activeWorkspace: Math.max(1, WM.monitorFor(root.screen)?.activeWorkspace?.id ?? 1)
     readonly property string greeting: DateTime.hour24 < 12 ? "GOOD MORNING" : DateTime.hour24 < 18 ? "GOOD AFTERNOON" : "GOOD EVENING"
     readonly property string trackTitle: StringUtils.cleanMusicTitle(root.player?.trackTitle) || "Nothing playing"
     readonly property string trackArtist: root.player?.trackArtist ?? "Your desktop, at a glance"
@@ -218,7 +217,7 @@ AbstractBackgroundWidget {
                                     MouseArea {
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: Hyprland.dispatch(`hl.dsp.focus({ workspace = ${workspaceTile.modelData} })`)
+                                        onClicked: WM.switchWorkspace(workspaceTile.modelData)
                                     }
                                     Behavior on color { ColorAnimation { duration: 160 } }
                                 }
