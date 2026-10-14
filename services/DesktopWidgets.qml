@@ -19,6 +19,7 @@ Singleton {
         { key: "todo",        icon: "add_task",          name: Translation.tr("To-Do") },
         { key: "notes",       icon: "note_stack_add",    name: Translation.tr("Notes") },
         { key: "timers",      icon: "timer",             name: Translation.tr("Timers") },
+        { key: "commandCenter", icon: "space_dashboard", name: Translation.tr("Desk Command Center") },
         { key: "images",      icon: "photo_library",     name: Translation.tr("Image Converter") },
         { key: "customImage", icon: "image",             name: Translation.tr("Custom Image") },
         { key: "imageCard",   icon: "photo_size_select_large", name: Translation.tr("Image Card") },

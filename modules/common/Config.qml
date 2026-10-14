@@ -457,6 +457,14 @@ Singleton {
                         property bool soundEnabled: true
                     }
 
+                    property JsonObject commandCenter: JsonObject {
+                        property bool enable: false
+                        property string placementStrategy: "free"
+                        property real x: 120
+                        property real y: 140
+                        property real z: 0
+                    }
+
                     property JsonObject media: JsonObject {
                         property bool enable: false
                         property bool showControls: true

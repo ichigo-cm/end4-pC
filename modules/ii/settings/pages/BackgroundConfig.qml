@@ -1471,6 +1471,12 @@ ContentPage {
                             enabled: Config.options.background.widgets.towerDefense.enable
                         },
                         {
+                            icon: "space_dashboard",
+                            key: "commandCenter",
+                            name: Translation.tr("Desk Command Center"),
+                            enabled: Config.options.background.widgets.commandCenter.enable
+                        },
+                        {
                             icon: "sticker",
                             key: "sticker",
                             name: Translation.tr("Sticker"),
@@ -1527,6 +1533,8 @@ ContentPage {
                                             Config.options.background.widgets.timers.enable = checked
                                         else if (modelData.icon === "castle")
                                             Config.options.background.widgets.towerDefense.enable = checked
+                                        else if (modelData.icon === "space_dashboard")
+                                            Config.options.background.widgets.commandCenter.enable = checked
                                         else if (modelData.icon === "sticker")
                                             Config.options.background.widgets.sticker.enable = checked
                                     }

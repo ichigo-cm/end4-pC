@@ -20,6 +20,7 @@ import qs.modules.ii.background.widgets.notes
 import qs.modules.ii.background.widgets.todo
 import qs.modules.ii.background.widgets.timers
 import qs.modules.ii.background.widgets.towerDefense
+import qs.modules.ii.background.widgets.commandcenter
 import qs.modules.ii.background.widgets.customtext
 
 Item {
@@ -50,6 +51,7 @@ Item {
             { key: "todo" },
             { key: "timers" },
             { key: "towerDefense" },
+            { key: "commandCenter" },
             { key: "customText" },
         ]
 
@@ -83,6 +85,7 @@ Item {
                     case "todo":        return todoComp
                     case "timers":      return timersComp
                     case "towerDefense": return towerDefenseComp
+                    case "commandCenter": return commandCenterComp
                     case "customText":  return customTextComp
                 }
                 return null
@@ -264,6 +267,18 @@ Item {
     Component {
         id: timersComp
         TimerWidget {
+            screenWidth: root.screen.width
+            screenHeight: root.screen.height
+            scaledScreenWidth: root.screen.width
+            scaledScreenHeight: root.screen.height
+            wallpaperScale: 1
+            wallpaperItem: root.wallpaperItem
+        }
+    }
+    Component {
+        id: commandCenterComp
+        CommandCenterWidget {
+            screen: root.screen
             screenWidth: root.screen.width
             screenHeight: root.screen.height
             scaledScreenWidth: root.screen.width
