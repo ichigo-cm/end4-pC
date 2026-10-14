@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
+import Qt5Compat.GraphicalEffects
 import Quickshell
 import qs
 import qs.services
@@ -17,6 +18,9 @@ AbstractBackgroundWidget {
     hoverEnabled: true
     implicitWidth: 690
     implicitHeight: 430
+    readonly property real panelRadius: Appearance.rounding.verylarge
+    readonly property real sectionRadius: Appearance.rounding.large
+    readonly property real tileRadius: Appearance.rounding.normal
     readonly property var player: MprisController.activePlayer
     readonly property int activeWorkspace: Math.max(1, WM.monitorFor(root.screen)?.activeWorkspace?.id ?? 1)
     readonly property string greeting: DateTime.hour24 < 12 ? "GOOD MORNING" : DateTime.hour24 < 18 ? "GOOD AFTERNOON" : "GOOD EVENING"
@@ -31,13 +35,34 @@ AbstractBackgroundWidget {
             Quickshell.execDetached(["bash", "-lc", command])
     }
 
+    StyledRectangularShadow {
+        target: card
+        z: -1
+        visible: Config.options.background.widgets.shadow
+    }
+
     WidgetCard {
         id: card
         anchors.fill: parent
         widget: root
         tint: Appearance.colors.colLayer0
         tintOpacity: 0.68
+        shadowed: false
         clip: true
+        radius: root.panelRadius
+        border.width: 1
+        border.color: ColorUtils.transparentize(Appearance.colors.colOutlineVariant, 0.68)
+        layer.enabled: true
+        layer.smooth: true
+        layer.effect: OpacityMask {
+            maskSource: Rectangle {
+                width: card.width
+                height: card.height
+                radius: root.panelRadius
+                color: "white"
+                antialiasing: true
+            }
+        }
 
         Rectangle {
             anchors.fill: parent
@@ -61,7 +86,7 @@ AbstractBackgroundWidget {
                 Rectangle {
                     Layout.preferredWidth: 46
                     Layout.preferredHeight: 46
-                    radius: 16
+                    radius: root.tileRadius
                     color: Appearance.colors.colPrimaryContainer
                     MaterialSymbol {
                         anchors.centerIn: parent
@@ -97,12 +122,20 @@ AbstractBackgroundWidget {
                         font.family: Appearance.font.family.numbers
                         color: Appearance.colors.colOnLayer1
                     }
+                RowLayout {
+                    Layout.alignment: Qt.AlignRight
+                    spacing: 4
+                    MaterialSymbol {
+                        text: Icons.getWeatherIcon(Weather.data?.wCode) ?? "cloud"
+                        iconSize: Appearance.font.pixelSize.normal
+                        color: Appearance.colors.colSecondary
+                    }
                     StyledText {
-                        Layout.alignment: Qt.AlignRight
                         text: `${Weather.data?.city || "WEATHER"}  ·  ${Weather.data?.temp ?? "--°"}`
                         font.pixelSize: Appearance.font.pixelSize.smaller
                         color: Appearance.colors.colSubtext
                     }
+                }
                 }
             }
 
@@ -151,7 +184,7 @@ AbstractBackgroundWidget {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     Layout.preferredWidth: 1
-                    radius: 22
+                    radius: root.sectionRadius
                     color: ColorUtils.transparentize(Appearance.colors.colLayer1, 0.25)
                     border.width: 1
                     border.color: ColorUtils.transparentize(Appearance.colors.colOutline, 0.72)
@@ -194,7 +227,7 @@ AbstractBackgroundWidget {
                                     required property int modelData
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
-                                    radius: 16
+                                    radius: root.tileRadius
                                     color: workspaceTile.modelData === root.activeWorkspace
                                         ? Appearance.colors.colPrimaryContainer
                                         : ColorUtils.transparentize(Appearance.colors.colLayer2, 0.24)
@@ -258,7 +291,7 @@ AbstractBackgroundWidget {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     Layout.preferredWidth: 1
-                    radius: 22
+                    radius: root.sectionRadius
                     color: ColorUtils.transparentize(Appearance.colors.colLayer1, 0.25)
                     border.width: 1
                     border.color: ColorUtils.transparentize(Appearance.colors.colOutline, 0.72)
@@ -310,7 +343,7 @@ AbstractBackgroundWidget {
                                 contentItem: MaterialSymbol { anchors.centerIn: parent; text: "skip_previous"; iconSize: 20; color: Appearance.colors.colOnLayer1 }
                             }
                             RippleButton {
-                                implicitWidth: 48; implicitHeight: 48; buttonRadius: 18
+                                implicitWidth: 48; implicitHeight: 48; buttonRadius: root.tileRadius
                                 enabled: root.player !== null
                                 colBackground: Appearance.colors.colPrimary
                                 colBackgroundHover: Appearance.colors.colPrimaryHover
@@ -384,7 +417,7 @@ AbstractBackgroundWidget {
         property string subtext: ""
         property var history: []
         implicitHeight: 78
-        radius: 18
+        radius: root.tileRadius
         color: ColorUtils.transparentize(accent, 0.88)
         border.width: 1
         border.color: ColorUtils.transparentize(accent, 0.72)
@@ -470,7 +503,7 @@ AbstractBackgroundWidget {
         property string description: ""
         signal triggered()
         implicitHeight: 42
-        buttonRadius: 15
+        buttonRadius: root.tileRadius
         onClicked: action.triggered()
         contentItem: RowLayout {
             spacing: 7
