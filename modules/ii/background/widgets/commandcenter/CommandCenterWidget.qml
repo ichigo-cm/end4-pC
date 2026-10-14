@@ -118,6 +118,7 @@ AbstractBackgroundWidget {
                     progress: Math.max(0, Math.min(1, ResourceUsage.cpuUsage))
                     accent: Appearance.colors.colPrimary
                     subtext: ResourceUsage.cpuTemp > 0 ? `${Math.round(ResourceUsage.cpuTemp)}°C` : "LIVE LOAD"
+                    history: ResourceUsage.cpuUsageHistory
                 }
                 TelemetryCard {
                     Layout.fillWidth: true
@@ -127,6 +128,7 @@ AbstractBackgroundWidget {
                     progress: Math.max(0, Math.min(1, ResourceUsage.memoryUsedPercentage))
                     accent: Appearance.colors.colSecondary
                     subtext: `${ResourceUsage.maxAvailableMemoryString} TOTAL`
+                    history: ResourceUsage.memoryUsageHistory
                 }
                 TelemetryCard {
                     Layout.fillWidth: true
@@ -136,6 +138,7 @@ AbstractBackgroundWidget {
                     progress: Math.max(0, Math.min(1, Battery.available ? Battery.percentage : ResourceUsage.diskUsedPercentage))
                     accent: Appearance.colors.colTertiary
                     subtext: Battery.available ? (Battery.isCharging ? "CHARGING" : "ON BATTERY") : "DISK USED"
+                    history: Battery.available ? [] : ResourceUsage.diskUsageHistory
                 }
             }
 
@@ -379,6 +382,7 @@ AbstractBackgroundWidget {
         property real progress: 0
         property color accent: Appearance.colors.colPrimary
         property string subtext: ""
+        property var history: []
         implicitHeight: 78
         radius: 18
         color: ColorUtils.transparentize(accent, 0.88)
@@ -409,18 +413,44 @@ AbstractBackgroundWidget {
                     color: Appearance.colors.colOnLayer1
                 }
             }
-            Rectangle {
+            RowLayout {
                 Layout.fillWidth: true
                 Layout.topMargin: 3
-                implicitHeight: 4
-                radius: 2
-                color: ColorUtils.transparentize(telemetry.accent, 0.7)
                 Rectangle {
-                    width: parent.width * telemetry.progress
-                    height: parent.height
-                    radius: parent.radius
-                    color: telemetry.accent
-                    Behavior on width { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 4
+                    radius: 2
+                    color: ColorUtils.transparentize(telemetry.accent, 0.7)
+                    Rectangle {
+                        width: parent.width * telemetry.progress
+                        height: parent.height
+                        radius: parent.radius
+                        color: telemetry.accent
+                        Behavior on width { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                    }
+                }
+                Canvas {
+                    Layout.preferredWidth: 48
+                    Layout.preferredHeight: 14
+                    property var values: telemetry.history
+                    onValuesChanged: requestPaint()
+                    onWidthChanged: requestPaint()
+                    onHeightChanged: requestPaint()
+                    onPaint: {
+                        const ctx = getContext("2d")
+                        ctx.clearRect(0, 0, width, height)
+                        if (!values || values.length < 2) return
+                        ctx.beginPath()
+                        ctx.lineWidth = 1.5
+                        ctx.strokeStyle = telemetry.accent
+                        for (let i = 0; i < values.length; i++) {
+                            const x = i / (values.length - 1) * width
+                            const y = height - Math.max(0, Math.min(1, values[i])) * height
+                            if (i === 0) ctx.moveTo(x, y)
+                            else ctx.lineTo(x, y)
+                        }
+                        ctx.stroke()
+                    }
                 }
             }
             StyledText {
