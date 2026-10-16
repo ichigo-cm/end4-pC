@@ -20,6 +20,7 @@ ContentPage {
     property string hostnameInput: SystemInfo.hostname
 
     property list<var> onlinePresets: []
+    property int onlinePreviewLoadLimit: 3
     property string onlinePresetsError: ""
     property bool onlinePresetsLoading: false
 
@@ -96,7 +97,7 @@ ContentPage {
         id: avatarFolderModel
         folder: Config.options.profile.avatarPath !== "" ? Qt.resolvedUrl(Config.options.profile.avatarPath) : ""
         showDirs: false
-        nameFilters: ["*.png", "*.svg", "*.jpg", "*.jpeg", "*.webp"]
+        nameFilters: ["*.png", "*.svg", "*.jpg", "*.jpeg", "*.gif", "*.webp"]
     }
 
     Process {
@@ -118,17 +119,15 @@ ContentPage {
         onExited: (code) => {
             page.onlinePresetsLoading = false
             const raw = onlinePresetsListCollector.text
-            console.log("[onlinePresets] curl exit code:", code)
             const statusMatch = raw.match(/HTTP_STATUS:(\d+)\s*$/)
             const httpStatus = statusMatch ? parseInt(statusMatch[1]) : -1
             const body = statusMatch ? raw.slice(0, statusMatch.index) : raw
-            console.log("[onlinePresets] http status:", httpStatus)
             try {
                 const data = JSON.parse(body)
                 if (!Array.isArray(data.tree)) throw new Error("unexpected response: " + JSON.stringify(data))
 
                 const prefix = "presets/"
-                const imageExt = /\.(png|jpe?g|webp)$/i
+                const imageExt = /\.(png|jpe?g|gif|webp)$/i
                 const groups = {}
 
                 for (const entry of data.tree) {
@@ -347,10 +346,11 @@ ContentPage {
 
                                 property bool isSelected: FileUtils.trimFileProtocol(filePath.toString()) === Config.options.profile.avatarPicture
 
-                                Image {
+                                AnimatedImage {
                                     id: avatarImage
                                     anchors.fill: parent
                                     source: filePath
+                                    playing: true
                                     fillMode: Image.PreserveAspectCrop
                                     sourceSize.width: avatarImage.width * 2
                                     sourceSize.height: avatarImage.height * 2
@@ -588,11 +588,7 @@ ContentPage {
                             onLoaded: {
                                 try {
                                     const data = JSON.parse(text())
-                                    const rawWallpaper = data?.background?.wallpaperPath ?? ""
-                                    const isVideo = /\.(mp4|webm|mkv|avi|mov)$/i.test(rawWallpaper)
-                                    presetDelegate.presetWallpaper = isVideo
-                                        ? (data?.background?.thumbnailPath ?? "")
-                                        : rawWallpaper
+                                    presetDelegate.presetWallpaper = Presets.previewImage(data)
                                     presetDelegate.presetDescription = data?._presetMeta?.description ?? ""
                                 } catch (e) {
                                     console.log("Failed to parse preset:", e)
@@ -636,11 +632,7 @@ ContentPage {
                                 onLoaded: {
                                     try {
                                         const data = JSON.parse(text())
-                                        const rawWallpaper = data?.background?.wallpaperPath ?? ""
-                                        const isVideo = /\.(mp4|webm|mkv|avi|mov)$/i.test(rawWallpaper)
-                                        onlineDelegate.presetWallpaper = isVideo
-                                            ? (data?.background?.thumbnailPath ?? "")
-                                            : rawWallpaper
+                                        onlineDelegate.presetWallpaper = Presets.previewImage(data)
                                         onlineDelegate.presetDescription = data?._presetMeta?.description ?? ""
                                     } catch (e) {
                                         console.log("Failed to parse online preset:", e)
@@ -689,11 +681,7 @@ ContentPage {
                             onLoaded: {
                                 try {
                                     const data = JSON.parse(text())
-                                    const rawWallpaper = data?.background?.wallpaperPath ?? ""
-                                    const isVideo = /\.(mp4|webm|mkv|avi|mov)$/i.test(rawWallpaper)
-                                    importedDelegate.presetWallpaper = isVideo
-                                        ? (data?.background?.thumbnailPath ?? "")
-                                        : rawWallpaper
+                                    importedDelegate.presetWallpaper = Presets.previewImage(data)
                                     importedDelegate.presetDescription = data?._presetMeta?.description ?? ""
                                 } catch (e) {
                                     console.log("Failed to parse imported preset:", e)
@@ -788,6 +776,7 @@ ContentPage {
                         delegate: Rectangle {
                             id: onlineCard
                             required property var modelData
+                            required property int index
                             implicitWidth: 293
                             implicitHeight: 186
                             radius: Appearance.rounding.normal
@@ -805,16 +794,21 @@ ContentPage {
                                     color: Appearance.colors.colLayer2
 
                                     StyledImage {
+                                        property bool finished: false
                                         anchors.fill: parent
                                         fillMode: Image.PreserveAspectCrop
-                                        source: onlineCard.modelData.screenshot
-                                        cache: false
+                                        source: onlineCard.index < page.onlinePreviewLoadLimit ? onlineCard.modelData.screenshot : ""
+                                        cache: true
                                         antialiasing: true
                                         sourceSize.width: onlineImageRect.width * 2
                                         sourceSize.height: onlineImageRect.height * 2
                                         onStatusChanged: {
                                             if (status === Image.Error) {
                                                 console.log("[onlineCard] failed to load image:", onlineCard.modelData.name, source)
+                                            }
+                                            if (!finished && (status === Image.Ready || status === Image.Error)) {
+                                                finished = true
+                                                page.onlinePreviewLoadLimit += 1
                                             }
                                         }
                                         layer.enabled: true

@@ -46,7 +46,7 @@ Scope {
             return "file://" + wallPath.substring(0, lastSlash)
         }
         showDirs: false
-        nameFilters: ["*.jpg", "*.jpeg", "*.png", "*.webp"]
+        nameFilters: ["*.jpg", "*.jpeg", "*.png", "*.gif", "*.webp"]
     }
 
     property int carouselExtraCount: 5
@@ -148,7 +148,7 @@ Scope {
                         Layout.fillWidth: true
                         implicitHeight: 160
                         radius: Appearance.rounding.verylarge
-                        color: Appearance.colors.colLayer0
+                        color: Appearance.colors.colUiBackground
                         clip: true
 
                         Carousel {
@@ -165,7 +165,7 @@ Scope {
                     GroupedList {
                         Layout.fillWidth: true
                         itemVerticalPadding: 16
-                        bgcolor: Appearance.colors.colLayer0
+                        bgcolor: Appearance.colors.colUiBackground
 
                         // Wallpapers
                         RippleButton {

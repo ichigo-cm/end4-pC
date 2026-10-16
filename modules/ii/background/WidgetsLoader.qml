@@ -19,6 +19,9 @@ import qs.modules.ii.background.widgets.usercard
 import qs.modules.ii.background.widgets.notes
 import qs.modules.ii.background.widgets.todo
 import qs.modules.ii.background.widgets.timers
+import qs.modules.ii.background.widgets.towerDefense
+import qs.modules.ii.background.widgets.anitrack
+import qs.modules.ii.background.widgets.customtext
 
 Item {
     id: root
@@ -34,6 +37,8 @@ Item {
         model: [
             { key: "visualizer" },
             { key: "customImage" },
+            { key: "imageCard" },
+            { key: "sticker" },
             { key: "calendar" },
             { key: "weather" },
             { key: "clock", alwaysOnLock: true },
@@ -45,6 +50,9 @@ Item {
             { key: "userCard" },
             { key: "todo" },
             { key: "timers" },
+            { key: "towerDefense" },
+            { key: "commandCenter" },
+            { key: "customText" },
         ]
 
         delegate: FadeLoader {
@@ -63,6 +71,8 @@ Item {
                 switch (loaderDelegate.modelData.key) {
                     case "visualizer":  return visualizerComp
                     case "customImage": return customImageComp
+                    case "imageCard":   return imageCardComp
+                    case "sticker":     return stickerComp
                     case "calendar":    return calendarComp
                     case "weather":     return weatherComp
                     case "clock":       return clockComp
@@ -74,6 +84,9 @@ Item {
                     case "userCard":    return userCardComp
                     case "todo":        return todoComp
                     case "timers":      return timersComp
+                    case "towerDefense": return towerDefenseComp
+                    case "commandCenter": return aniTrackComp
+                    case "customText":  return customTextComp
                 }
                 return null
             }
@@ -108,8 +121,30 @@ Item {
         }
     }
     Component {
+        id: imageCardComp
+        ImageCardWidget {
+            screenWidth: root.screen.width
+            screenHeight: root.screen.height
+            scaledScreenWidth: root.screen.width
+            scaledScreenHeight: root.screen.height
+            wallpaperScale: 1
+            wallpaperItem: root.wallpaperItem
+        }
+    }
+    Component {
         id: customImageComp
         CustomImage {
+            screenWidth: root.screen.width
+            screenHeight: root.screen.height
+            scaledScreenWidth: root.screen.width
+            scaledScreenHeight: root.screen.height
+            wallpaperScale: 1
+            wallpaperItem: root.wallpaperItem
+        }
+    }
+    Component {
+        id: stickerComp
+        StickerWidget {
             screenWidth: root.screen.width
             screenHeight: root.screen.height
             scaledScreenWidth: root.screen.width
@@ -232,6 +267,39 @@ Item {
     Component {
         id: timersComp
         TimerWidget {
+            screenWidth: root.screen.width
+            screenHeight: root.screen.height
+            scaledScreenWidth: root.screen.width
+            scaledScreenHeight: root.screen.height
+            wallpaperScale: 1
+            wallpaperItem: root.wallpaperItem
+        }
+    }
+    Component {
+        id: aniTrackComp
+        AniTrackWidget {
+            screenWidth: root.screen.width
+            screenHeight: root.screen.height
+            scaledScreenWidth: root.screen.width
+            scaledScreenHeight: root.screen.height
+            wallpaperScale: 1
+            wallpaperItem: root.wallpaperItem
+        }
+    }
+    Component {
+        id: customTextComp
+        CustomTextWidget {
+            screenWidth: root.screen.width
+            screenHeight: root.screen.height
+            scaledScreenWidth: root.screen.width
+            scaledScreenHeight: root.screen.height
+            wallpaperScale: 1
+            wallpaperItem: root.wallpaperItem
+        }
+    }
+    Component {
+        id: towerDefenseComp
+        TowerDefenseWidget {
             screenWidth: root.screen.width
             screenHeight: root.screen.height
             scaledScreenWidth: root.screen.width

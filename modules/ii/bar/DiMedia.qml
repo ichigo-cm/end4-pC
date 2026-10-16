@@ -50,10 +50,11 @@ Item {
                 }
             }
 
-            StyledImage {
+            AnimatedImage {
                 anchors.fill: parent
                 fillMode: Image.PreserveAspectCrop
                 source: root.activePlayer?.trackArtUrl ?? ""
+                playing: true
                 sourceSize.width: artMask.width * 2
                 sourceSize.height: artMask.height * 2
                 visible: (root.activePlayer?.trackArtUrl ?? "") !== ""

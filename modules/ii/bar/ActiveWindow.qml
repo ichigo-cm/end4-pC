@@ -14,6 +14,8 @@ import Qt5Compat.GraphicalEffects
 
 Item {
     id: root
+    property color contentColor: Appearance.colors.colOnLayer0
+    property bool contentColorOverridden: false
     property bool vertical: false
     readonly property var monitor: WM.monitorFor(root.QsWindow.window?.screen)
     readonly property Toplevel activeWindow: ToplevelManager.activeToplevel
@@ -29,9 +31,9 @@ Item {
 
     property var mainAppIconSource: {
         if (!root.activeAppClass || root.activeAppClass === "")
-            return Quickshell.iconPath("user-desktop", "image-missing")
-        return Quickshell.iconPath(AppSearch.guessIcon(root.activeAppClass), 
-            Quickshell.iconPath("user-desktop", "image-missing"))     // ← fallback Desktop
+            return SystemAppearance.iconPath("user-desktop", "image-missing")
+        return SystemAppearance.iconPath(AppSearch.guessIcon(root.activeAppClass), 
+            SystemAppearance.iconPath("user-desktop", "image-missing"))     // ← fallback Desktop
     }
 
     Component.onCompleted: {
@@ -41,7 +43,7 @@ Item {
         console.log("iconPath:", root.mainAppIconSource)
     }
 
-    implicitWidth:  vertical ? Appearance.sizes.verticalBarWidth : Math.min(colLayout.implicitWidth + 6, 280)
+    implicitWidth:  vertical ? Appearance.sizes.verticalBarWidth : Math.min(colLayout.implicitWidth + 12, 280)
     implicitHeight: vertical ? iconItem.implicitHeight : Appearance.sizes.barHeight
 
     // Vertical
@@ -67,13 +69,13 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.leftMargin: 3
+        anchors.leftMargin: 6
         spacing: -4
 
         StyledText {
             Layout.fillWidth: true
             font.pixelSize: Appearance.font.pixelSize.smaller
-            color: Appearance.colors.colSubtext
+            color: root.contentColorOverridden ? Qt.alpha(root.contentColor, 0.7) : Appearance.colors.colSubtext
             elide: Text.ElideRight
             text: root.focusingThisMonitor && root.activeWindow?.activated && root.biggestWindow ?
                 root.activeWindow?.appId :
@@ -82,7 +84,7 @@ Item {
         StyledText {
             Layout.fillWidth: true
             font.pixelSize: Appearance.font.pixelSize.small
-            color: Appearance.colors.colOnLayer0
+            color: root.contentColor
             elide: Text.ElideRight
             text: root.focusingThisMonitor && root.activeWindow?.activated && root.biggestWindow ?
                 root.activeWindow?.title :
