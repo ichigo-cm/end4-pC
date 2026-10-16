@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls.Basic
+import qs
 import qs.modules.common
 import qs.modules.common.widgets
 
@@ -225,6 +226,17 @@ Item {
                     selectedTextColor: Appearance.colors.colOnPrimaryContainer
                     Accessible.name: qsTr("Search anime titles")
                     onAccepted: root.search()
+                    onActiveFocusChanged: {
+                        if (activeFocus)
+                            GlobalStates.desktopWidgetKeyboardFocus = true;
+                    }
+                    TapHandler {
+                        acceptedButtons: Qt.LeftButton
+                        onTapped: {
+                            searchField.forceActiveFocus();
+                            GlobalStates.desktopWidgetKeyboardFocus = true;
+                        }
+                    }
                     background: Rectangle {
                         radius: Appearance.rounding.normal
                         color: Appearance.colors.colLayer1
