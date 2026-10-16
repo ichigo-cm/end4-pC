@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
-import Qt5Compat.GraphicalEffects
 import Quickshell
 import Quickshell.Io
 import qs.modules.common
@@ -12,303 +11,177 @@ import qs.modules.ii.background.widgets
 AbstractBackgroundWidget {
     id: root
 
-    // Keep the existing persisted key so current enable/placement settings carry over.
+    // Keep the persisted slot so saved enable and placement settings survive the replacement.
     configEntryName: "commandCenter"
     hoverEnabled: true
-    implicitWidth: 340
-    implicitHeight: 300
+    implicitWidth: 420
+    implicitHeight: 540
 
-    property var watchedEntries: []
-    property string historyState: "loading" // loading, ready, empty, missing, error
+    property var historyEntries: []
+    property string historyState: "loading"
     property string historyError: ""
+    property bool historyRefreshing: false
+    property string launchStatus: ""
+    property bool launchFailed: false
+    property var launchCommand: []
+    property double lastJikanRequestMs: 0
+    property double jikanBlockedUntilMs: 0
+    property double lastLaunchMs: 0
 
-    property var releaseEntries: []
-    property string releaseState: "idle" // idle, loading, ready, partial, error
-    property string releaseError: ""
-    property var releaseAccumulator: []
-    property var scheduleRequest: null
-    property int nextSchedulePage: 1
-    property double lastScheduleRefreshMs: 0
-    property bool releaseRefreshCooldown: false
+    function jikanDelayMs() {
+        return Math.max(0, 1200 - (Date.now() - lastJikanRequestMs), jikanBlockedUntilMs - Date.now());
+    }
+
+    function claimJikanRequest() {
+        if (jikanDelayMs() > 0)
+            return false;
+        lastJikanRequestMs = Date.now();
+        return true;
+    }
+
+    function noteJikanRateLimit(retryAfter) {
+        const value = String(retryAfter || "").trim();
+        const seconds = Number(value);
+        const parsedDate = Date.parse(value);
+        const delay = Number.isFinite(seconds) && seconds > 0
+            ? seconds * 1000
+            : (!isNaN(parsedDate) ? Math.max(1000, parsedDate - Date.now()) : 60000);
+        jikanBlockedUntilMs = Math.max(jikanBlockedUntilMs, Date.now() + delay);
+    }
 
     function refreshHistory() {
         if (historyReader.running)
             return;
-        historyState = "loading";
+        historyRefreshing = true;
         historyError = "";
+        if (historyEntries.length === 0)
+            historyState = "loading";
         historyReader.running = true;
     }
 
-    function acceptHistoryResponse(raw) {
+    function acceptHistory(raw) {
         try {
             const result = JSON.parse(raw);
             if (!result.ok) {
-                historyState = "error";
-                historyError = result.error || "AniTrack history could not be read.";
+                historyError = result.error || qsTr("Could not read ani-cli history.");
+                historyState = historyEntries.length > 0 ? "ready" : "error";
+                historyRefreshing = false;
                 return;
             }
-
-            watchedEntries = Array.isArray(result.entries) ? result.entries : [];
-            if (!result.databaseFound)
-                historyState = "missing";
-            else if (watchedEntries.length === 0)
-                historyState = "empty";
-            else
-                historyState = "ready";
+            historyEntries = Array.isArray(result.entries) ? result.entries : [];
+            const malformed = Number(result.malformed) || 0;
+            historyError = malformed > 0
+                ? qsTr("Skipped %1 malformed history row(s). Valid rows are still shown.").arg(malformed)
+                : "";
+            historyState = !result.historyFound ? "missing"
+                : historyEntries.length > 0 ? "ready"
+                : malformed > 0 ? "error" : "empty";
+            historyRefreshing = false;
         } catch (error) {
-            historyState = "error";
-            historyError = "AniTrack returned unreadable history data.";
-            console.warn("[AniTrackWidget] Failed to parse local history:", error);
+            historyError = qsTr("ani-cli returned unreadable history data.");
+            historyState = historyEntries.length > 0 ? "ready" : "error";
+            historyRefreshing = false;
+            console.warn("[AniTrackWidget] Could not parse ani-cli history:", error);
         }
     }
 
-    function progressRatio(entry) {
-        const episode = Number(entry?.last_episode);
-        const total = Number(entry?.total_episodes);
-        if (isNaN(episode) || isNaN(total) || total <= 0)
-            return 0;
-        return Math.max(0, Math.min(1, episode / total));
-    }
-
-    function progressLabel(entry) {
-        const episode = entry?.last_episode === null || entry?.last_episode === undefined
-            ? "?" : String(entry.last_episode);
-        const total = Number(entry?.total_episodes);
-        const progress = !isNaN(total) && total > 0
-            ? `Ep ${episode} of ${total}` : `Ep ${episode}`;
-        return `${progress} · ${formatLastSeen(entry?.last_seen_at)}`;
-    }
-
-    function formatLastSeen(value) {
-        if (!value)
-            return "Date unknown";
-        const date = new Date(value);
-        if (isNaN(date.getTime()))
-            return "Date unknown";
-        const now = new Date();
-        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-        const seenStart = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-        const daysAgo = Math.round((todayStart - seenStart) / 86400000);
-        if (daysAgo === 0)
-            return "Today";
-        if (daysAgo === 1)
-            return "Yesterday";
-        return Qt.formatDateTime(date, "MMM d");
-    }
-
-    function headerCaption() {
-        if (tabBar.currentIndex === 0)
-            return historyState === "ready"
-                ? `${watchedEntries.length} tracked shows` : "Local watch history";
-        return releaseState === "ready" || releaseState === "partial"
-            ? `${releaseEntries.length} airings this week` : "Weekly airing schedule";
-    }
-
-    function ensureScheduleFresh() {
-        const stale = lastScheduleRefreshMs > 0
-            && Date.now() - lastScheduleRefreshMs > 6 * 60 * 60 * 1000;
-        if (releaseState === "idle" || (releaseState === "ready" && stale))
-            refreshSchedule();
-    }
-
-    function refreshSchedule() {
-        if (releaseState === "loading" || releaseRefreshCooldown)
+    function openAniCli(title) {
+        if (launchProcess.running || Date.now() - lastLaunchMs < 1200)
             return;
-        releaseRefreshCooldown = true;
-        scheduleRefreshCooldown.restart();
-        if (scheduleRequest) {
-            scheduleRequest.abort();
-            scheduleRequest = null;
-        }
-        schedulePageDelay.stop();
-        scheduleRequestTimeout.stop();
-        releaseAccumulator = [];
-        releaseEntries = [];
-        releaseError = "";
-        releaseState = "loading";
-        nextSchedulePage = 1;
-        fetchSchedulePage(1);
-    }
-
-    function fetchSchedulePage(page) {
-        if (releaseState !== "loading")
+        const cleanTitle = String(title || "").replace(/[\r\n]/g, " ").trim();
+        if (!cleanTitle)
             return;
-
-        const request = new XMLHttpRequest();
-        scheduleRequest = request;
-        request.onreadystatechange = function() {
-            if (request.readyState !== XMLHttpRequest.DONE)
-                return;
-            if (root.scheduleRequest !== request)
-                return;
-
-            root.scheduleRequest = null;
-            scheduleRequestTimeout.stop();
-
-            if (request.status !== 200) {
-                let message = `Schedule service returned HTTP ${request.status}.`;
-                if (request.status === 429)
-                    message = "The schedule service is rate-limited. Try again later.";
-                else if (request.status === 0)
-                    message = "Could not reach the schedule service.";
-                root.failSchedule(message);
-                return;
-            }
-
-            try {
-                const response = JSON.parse(request.responseText);
-                if (!Array.isArray(response.data)) {
-                    root.failSchedule("The schedule service returned an unexpected response.");
-                    return;
-                }
-
-                root.releaseAccumulator = root.releaseAccumulator.concat(response.data);
-                const hasNextPage = response.pagination?.has_next_page === true;
-                if (hasNextPage) {
-                    root.nextSchedulePage = page + 1;
-                    schedulePageDelay.restart();
-                    return;
-                }
-
-                root.releaseEntries = root.normalizeSchedule(root.releaseAccumulator);
-                root.releaseState = "ready";
-                root.releaseError = "";
-                root.lastScheduleRefreshMs = Date.now();
-            } catch (error) {
-                root.failSchedule("Could not read the schedule response.");
-                console.warn("[AniTrackWidget] Failed to parse schedule:", error);
-            }
-        };
-
-        request.open("GET", `https://api.jikan.moe/v4/schedules?limit=25&page=${page}`);
-        request.setRequestHeader("Accept", "application/json");
-        request.send();
-        scheduleRequestTimeout.restart();
+        lastLaunchMs = Date.now();
+        launchStatus = qsTr("Opening ani-cli in your terminal…");
+        launchFailed = false;
+        launchCommand = ["launch", "--terminal", Config.options.apps.terminal,
+            `--title=${cleanTitle}`];
+        launchProcess.running = true;
     }
 
-    function failSchedule(message) {
-        releaseEntries = normalizeSchedule(releaseAccumulator);
-        releaseError = message;
-        releaseState = releaseEntries.length > 0 ? "partial" : "error";
+    function continueAniCliHistory() {
+        if (launchProcess.running || Date.now() - lastLaunchMs < 1200)
+            return;
+        lastLaunchMs = Date.now();
+        launchStatus = qsTr("Opening ani-cli history…");
+        launchFailed = false;
+        launchCommand = ["launch", "--terminal", Config.options.apps.terminal,
+            "--continue"];
+        launchProcess.running = true;
     }
 
-    function normalizeSchedule(items) {
-        const dayNames = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-        function dayIndex(day) {
-            const normalized = String(day || "").toLowerCase();
-            const index = dayNames.findIndex(name => normalized.startsWith(name));
-            return index < 0 ? dayNames.length : index;
+    function acceptLaunchOutput(raw) {
+        if (!raw.trim())
+            return;
+        try {
+            const result = JSON.parse(raw);
+            launchFailed = !result.ok;
+            launchStatus = result.ok
+                ? result.message : (result.error || qsTr("Could not start ani-cli."));
+        } catch (error) {
+            launchFailed = true;
+            launchStatus = qsTr("Could not read the terminal launch result.");
+            console.warn("[AniTrackWidget] Could not parse launch result:", error);
         }
-        function timeMinutes(time) {
-            const match = String(time || "").match(/(\d{1,2}):(\d{2})/);
-            return match ? Number(match[1]) * 60 + Number(match[2]) : 9999;
-        }
-
-        return items
-            .filter(item => item && typeof item === "object")
-            .map(item => {
-                const broadcast = item.broadcast || {};
-                const images = item.images || {};
-                const webp = images.webp || {};
-                const jpg = images.jpg || {};
-                const imageUrl = String(webp.small_image_url || jpg.small_image_url
-                    || webp.image_url || jpg.image_url || "");
-                return {
-                    title: String(item.title_english || item.title || item.title_japanese || "Untitled anime"),
-                    imageUrl: /^https:\/\//i.test(imageUrl) ? imageUrl : "",
-                    day: String(broadcast.day || ""),
-                    time: String(broadcast.time || ""),
-                    timezone: String(broadcast.timezone || ""),
-                    scheduleText: String(broadcast.string || "")
-                };
-            })
-            .sort((left, right) => {
-                const byDay = dayIndex(left.day) - dayIndex(right.day);
-                if (byDay !== 0)
-                    return byDay;
-                const byTime = timeMinutes(left.time) - timeMinutes(right.time);
-                return byTime !== 0 ? byTime : left.title.localeCompare(right.title);
-            });
-    }
-
-    function scheduleDescription(entry) {
-        if (entry?.scheduleText)
-            return entry.scheduleText;
-        const parts = [entry?.day, entry?.time, entry?.timezone].filter(value => !!value);
-        return parts.length > 0 ? parts.join("  ·  ") : "Broadcast time not listed";
+        clearLaunchStatus.restart();
     }
 
     Component.onCompleted: refreshHistory()
-    Component.onDestruction: {
-        schedulePageDelay.stop();
-        scheduleRequestTimeout.stop();
-        if (scheduleRequest) {
-            const request = scheduleRequest;
-            scheduleRequest = null;
-            request.abort();
-        }
+    onVisibleChanged: {
+        if (visible && tabBar.currentIndex === 1)
+            refreshHistory();
     }
 
     Process {
         id: historyReader
-        command: ["python3", Quickshell.shellPath("modules/ii/background/widgets/anitrack/read_anitrack.py")]
+        command: ["python3", Quickshell.shellPath("modules/ii/background/widgets/anitrack/ani_cli_bridge.py"), "read-history"]
         stdout: StdioCollector {
             id: historyOutput
-            onStreamFinished: root.acceptHistoryResponse(historyOutput.text)
+            onStreamFinished: root.acceptHistory(historyOutput.text)
         }
         stderr: StdioCollector { id: historyErrorOutput }
         onExited: (code, status) => {
-            if (code !== 0 && root.historyState === "loading") {
-                root.historyState = "error";
-                root.historyError = historyErrorOutput.text.trim()
-                    || "Could not read AniTrack history. Check that Python 3 is installed.";
+            if (code !== 0) {
+                const errorText = historyErrorOutput.text.trim()
+                    || qsTr("Could not read ani-cli history. Check that Python 3 is installed.");
+                if (root.historyState === "loading" || root.historyEntries.length === 0)
+                    root.historyState = "error";
+                root.historyError = errorText;
+            }
+            root.historyRefreshing = false;
+        }
+    }
+
+    Process {
+        id: launchProcess
+        command: ["python3", Quickshell.shellPath("modules/ii/background/widgets/anitrack/ani_cli_bridge.py"), ...root.launchCommand]
+        stdout: StdioCollector {
+            id: launchOutput
+            onStreamFinished: root.acceptLaunchOutput(launchOutput.text)
+        }
+        stderr: StdioCollector { id: launchErrorOutput }
+        onExited: (code, status) => {
+            if (code !== 0 && root.launchStatus.startsWith(qsTr("Opening"))) {
+                root.launchFailed = true;
+                root.launchStatus = launchErrorOutput.text.trim()
+                    || qsTr("Could not start ani-cli or the configured terminal.");
+                clearLaunchStatus.restart();
             }
         }
     }
 
     Timer {
-        interval: 60 * 1000
+        id: clearLaunchStatus
+        interval: 7000
+        repeat: false
+        onTriggered: root.launchStatus = ""
+    }
+
+    Timer {
+        interval: 30000
         repeat: true
-        running: true
+        running: root.visible && tabBar.currentIndex === 1
         onTriggered: root.refreshHistory()
-    }
-
-    Timer {
-        id: schedulePageDelay
-        interval: 500
-        repeat: false
-        onTriggered: root.fetchSchedulePage(root.nextSchedulePage)
-    }
-
-    Timer {
-        id: scheduleRequestTimeout
-        interval: 15 * 1000
-        repeat: false
-        onTriggered: {
-            if (!root.scheduleRequest)
-                return;
-            const request = root.scheduleRequest;
-            root.scheduleRequest = null;
-            request.abort();
-            root.failSchedule("The schedule request timed out.");
-        }
-    }
-
-    Timer {
-        interval: 6 * 60 * 60 * 1000
-        repeat: true
-        running: true
-        onTriggered: {
-            if (tabBar.currentIndex === 1)
-                root.refreshSchedule();
-        }
-    }
-
-    Timer {
-        id: scheduleRefreshCooldown
-        interval: 10 * 1000
-        repeat: false
-        onTriggered: root.releaseRefreshCooldown = false
     }
 
     WidgetCard {
@@ -318,58 +191,42 @@ AbstractBackgroundWidget {
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 12
-            spacing: 8
+            anchors.margins: 16
+            spacing: 10
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 10
+                spacing: 11
 
                 Rectangle {
-                    Layout.preferredWidth: 40
-                    Layout.preferredHeight: 40
+                    Layout.preferredWidth: 42
+                    Layout.preferredHeight: 42
                     radius: Appearance.rounding.normal
                     color: Appearance.colors.colPrimaryContainer
                     MaterialSymbol {
                         anchors.centerIn: parent
-                        text: "movie"
-                        iconSize: 21
+                        text: "movie_edit"
+                        iconSize: 22
                         color: Appearance.colors.colOnPrimaryContainer
+                        Accessible.ignored: true
                     }
                 }
 
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 1
+                    spacing: 2
                     StyledText {
-                        text: "AniTrack"
-                        font.pixelSize: Appearance.font.pixelSize.huge
+                        text: qsTr("AniTrack")
+                        font.pixelSize: Appearance.font.pixelSize.large
                         font.weight: Font.Medium
-                        color: Appearance.colors.colOnPrimaryContainer
-                    }
-                    StyledText {
-                        text: root.headerCaption()
-                        font.pixelSize: Appearance.font.pixelSize.small
-                        font.weight: Font.Medium
-                        color: Appearance.colors.colSubtext
-                    }
-                }
-
-                RippleButton {
-                    implicitWidth: 36
-                    implicitHeight: 36
-                    buttonRadius: Appearance.rounding.normal
-                    enabled: tabBar.currentIndex === 0 ? !historyReader.running
-                        : root.releaseState !== "loading" && !root.releaseRefreshCooldown
-                    onClicked: tabBar.currentIndex === 0 ? root.refreshHistory() : root.refreshSchedule()
-                    contentItem: MaterialSymbol {
-                        anchors.centerIn: parent
-                        text: "refresh"
-                        iconSize: Appearance.font.pixelSize.larger
                         color: Appearance.colors.colOnLayer1
                     }
-                    StyledToolTip {
-                        text: tabBar.currentIndex === 0 ? "Refresh AniTrack history" : "Refresh weekly schedule"
+                    StyledText {
+                        text: tabBar.currentIndex === 0
+                            ? qsTr("Discover something to watch")
+                            : qsTr("%1 titles saved by ani-cli").arg(root.historyEntries.length)
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        color: Appearance.colors.colSubtext
                     }
                 }
             }
@@ -379,16 +236,15 @@ AbstractBackgroundWidget {
                 Layout.fillWidth: true
                 onCurrentIndexChanged: {
                     if (currentIndex === 1)
-                        root.ensureScheduleFresh();
+                        root.refreshHistory();
                 }
-
+                SecondaryTabButton {
+                    buttonIcon: "search"
+                    buttonText: qsTr("Discover")
+                }
                 SecondaryTabButton {
                     buttonIcon: "history"
-                    buttonText: "My AniTrack"
-                }
-                SecondaryTabButton {
-                    buttonIcon: "calendar_view_week"
-                    buttonText: "Releases"
+                    buttonText: qsTr("My History")
                 }
             }
 
@@ -397,277 +253,54 @@ AbstractBackgroundWidget {
                 Layout.fillHeight: true
                 currentIndex: tabBar.currentIndex
 
-                Item {
+                AnimeSearchView {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-
-                    StyledListView {
-                        id: historyList
-                        anchors.fill: parent
-                        clip: true
-                        spacing: 2
-                        animateAppearance: false
-                        model: root.watchedEntries
-                        visible: root.historyState === "ready" && root.watchedEntries.length > 0
-
-                        delegate: Item {
-                            required property var modelData
-                            required property int index
-                            width: historyList.width
-                            height: 54
-
-                            RowLayout {
-                                anchors {
-                                    left: parent.left
-                                    right: parent.right
-                                    top: parent.top
-                                    bottom: parent.bottom
-                                    bottomMargin: 5
-                                }
-                                spacing: 9
-
-                                Rectangle {
-                                    Layout.preferredWidth: 38
-                                    Layout.preferredHeight: 38
-                                    Layout.alignment: Qt.AlignVCenter
-                                    radius: Appearance.rounding.normal
-                                    color: Appearance.colors.colPrimaryContainer
-                                    StyledText {
-                                        anchors.centerIn: parent
-                                        width: parent.width - 4
-                                        horizontalAlignment: Text.AlignHCenter
-                                        elide: Text.ElideRight
-                                        maximumLineCount: 1
-                                        text: modelData.last_episode === null || modelData.last_episode === undefined
-                                            ? "?" : String(modelData.last_episode)
-                                        font.pixelSize: Appearance.font.pixelSize.small
-                                        font.weight: Font.Bold
-                                        color: Appearance.colors.colOnPrimaryContainer
-                                    }
-                                }
-
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 2
-                                    StyledText {
-                                        Layout.fillWidth: true
-                                        text: modelData.title || "Untitled anime"
-                                        elide: Text.ElideRight
-                                        maximumLineCount: 1
-                                        font.pixelSize: Appearance.font.pixelSize.normal
-                                        font.weight: Font.Medium
-                                        color: Appearance.colors.colOnLayer1
-                                    }
-                                    StyledText {
-                                        Layout.fillWidth: true
-                                        text: root.progressLabel(modelData)
-                                        elide: Text.ElideRight
-                                        maximumLineCount: 1
-                                        font.pixelSize: Appearance.font.pixelSize.smaller
-                                        color: Appearance.colors.colSubtext
-                                    }
-                                }
-                            }
-
-                            Rectangle {
-                                anchors {
-                                    left: parent.left
-                                    right: parent.right
-                                    bottom: parent.bottom
-                                }
-                                height: 2
-                                radius: height / 2
-                                color: Appearance.colors.colOutlineVariant
-                                Rectangle {
-                                    width: parent.width * root.progressRatio(modelData)
-                                    height: parent.height
-                                    radius: parent.radius
-                                    color: Appearance.colors.colPrimary
-                                }
-                            }
-                        }
-                    }
-
-                    ColumnLayout {
-                        anchors.centerIn: parent
-                        width: parent.width - 20
-                        spacing: 6
-                        visible: !historyList.visible
-                        MaterialSymbol {
-                            Layout.alignment: Qt.AlignHCenter
-                            text: root.historyState === "loading" ? "hourglass_top"
-                                : root.historyState === "error" ? "error_outline" : "visibility_off"
-                            iconSize: 26
-                            color: root.historyState === "error" ? Appearance.colors.colError : Appearance.colors.colPrimary
-                        }
-                        StyledText {
-                            Layout.fillWidth: true
-                            horizontalAlignment: Text.AlignHCenter
-                            text: root.historyState === "loading" ? "Reading watch history…"
-                                : root.historyState === "missing" ? "No AniTrack data yet"
-                                : root.historyState === "error" ? "Couldn't read AniTrack"
-                                : "Nothing watched yet"
-                            font.pixelSize: Appearance.font.pixelSize.normal
-                            font.weight: Font.Medium
-                            color: Appearance.colors.colOnLayer1
-                        }
-                        StyledText {
-                            Layout.fillWidth: true
-                            horizontalAlignment: Text.AlignHCenter
-                            wrapMode: Text.WordWrap
-                            text: root.historyState === "missing"
-                                ? "Play an episode with AniTrack to start your list."
-                                : root.historyState === "error" ? root.historyError
-                                : root.historyState === "loading" ? "Reading AniTrack's local watch history."
-                                : "Shows you watch through AniTrack will appear here."
-                            font.pixelSize: Appearance.font.pixelSize.small
-                            color: Appearance.colors.colSubtext
-                        }
-                    }
+                    apiCoordinator: root
+                    onLaunchRequested: title => root.openAniCli(title)
                 }
 
-                ColumnLayout {
+                AniCliHistoryView {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    spacing: 4
+                    entries: root.historyEntries
+                    stateName: root.historyState
+                    errorMessage: root.historyError
+                    refreshing: root.historyRefreshing
+                    apiCoordinator: root
+                    onRefreshRequested: root.refreshHistory()
+                    onContinueRequested: root.continueAniCliHistory()
+                    onTitleRequested: title => root.openAniCli(title)
+                }
+            }
 
-                    Item {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-
-                        StyledListView {
-                            id: releaseList
-                            anchors.fill: parent
-                            clip: true
-                            spacing: 2
-                            animateAppearance: false
-                            model: root.releaseEntries
-                            visible: (root.releaseState === "ready" || root.releaseState === "partial")
-                                && root.releaseEntries.length > 0
-
-                            delegate: Item {
-                                required property var modelData
-                                width: releaseList.width
-                                height: 56
-
-                                RowLayout {
-                                    anchors.fill: parent
-                                    spacing: 9
-
-                                    Item {
-                                        Layout.preferredWidth: 36
-                                        Layout.preferredHeight: 50
-                                        Layout.alignment: Qt.AlignVCenter
-                                        Rectangle {
-                                            anchors.fill: parent
-                                            radius: Appearance.rounding.small
-                                            color: Appearance.colors.colSurfaceContainerLow
-
-                                            Image {
-                                                id: posterImage
-                                                anchors.fill: parent
-                                                source: modelData.imageUrl
-                                                fillMode: Image.PreserveAspectCrop
-                                                asynchronous: true
-                                                cache: true
-                                                sourceSize.width: 72
-                                                sourceSize.height: 100
-                                                layer.enabled: modelData.imageUrl !== ""
-                                                layer.effect: OpacityMask {
-                                                    maskSource: Rectangle {
-                                                        width: posterImage.width
-                                                        height: posterImage.height
-                                                        radius: Appearance.rounding.small
-                                                    }
-                                                }
-                                            }
-
-                                            MaterialSymbol {
-                                                anchors.centerIn: parent
-                                                text: "movie"
-                                                iconSize: Appearance.font.pixelSize.larger
-                                                color: Appearance.colors.colSubtext
-                                                visible: posterImage.status !== Image.Ready
-                                            }
-
-                                            Rectangle {
-                                                anchors.fill: parent
-                                                radius: parent.radius
-                                                color: "transparent"
-                                                border.width: 1
-                                                border.color: Appearance.colors.colOutlineVariant
-                                            }
-                                        }
-                                    }
-
-                                    ColumnLayout {
-                                        Layout.fillWidth: true
-                                        spacing: 2
-                                        StyledText {
-                                            Layout.fillWidth: true
-                                            text: modelData.title
-                                            elide: Text.ElideRight
-                                            maximumLineCount: 1
-                                            font.pixelSize: Appearance.font.pixelSize.normal
-                                            font.weight: Font.Medium
-                                            color: Appearance.colors.colOnPrimaryContainer
-                                        }
-                                        StyledText {
-                                            Layout.fillWidth: true
-                                            text: root.scheduleDescription(modelData)
-                                            elide: Text.ElideRight
-                                            maximumLineCount: 1
-                                            font.pixelSize: Appearance.font.pixelSize.smaller
-                                            color: Appearance.colors.colSubtext
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        ColumnLayout {
-                            anchors.centerIn: parent
-                            width: parent.width - 20
-                            spacing: 6
-                            visible: !releaseList.visible
-                            MaterialSymbol {
-                                Layout.alignment: Qt.AlignHCenter
-                                text: root.releaseState === "loading" ? "hourglass_top"
-                                    : root.releaseState === "error" ? "cloud_off" : "calendar_month"
-                                iconSize: 26
-                                color: root.releaseState === "error" ? Appearance.colors.colError : Appearance.colors.colPrimary
-                            }
-                            StyledText {
-                                Layout.fillWidth: true
-                                horizontalAlignment: Text.AlignHCenter
-                                text: root.releaseState === "loading" ? "Loading this week's schedule…"
-                                    : root.releaseState === "error" ? "Schedule unavailable"
-                                    : "No airings listed"
-                                font.pixelSize: Appearance.font.pixelSize.normal
-                                font.weight: Font.Medium
-                                color: Appearance.colors.colOnLayer1
-                            }
-                            StyledText {
-                                Layout.fillWidth: true
-                                horizontalAlignment: Text.AlignHCenter
-                                wrapMode: Text.WordWrap
-                                text: root.releaseState === "error" ? root.releaseError
-                                    : root.releaseState === "loading" ? "Fetching the weekly schedule."
-                                    : "Try refreshing later."
-                                font.pixelSize: Appearance.font.pixelSize.small
-                                color: Appearance.colors.colSubtext
-                            }
-                        }
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 34
+                radius: Appearance.rounding.small
+                color: root.launchFailed
+                    ? Appearance.colors.colErrorContainer : Appearance.colors.colLayer1
+                visible: root.launchStatus !== ""
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 10
+                    anchors.rightMargin: 10
+                    spacing: 7
+                    MaterialSymbol {
+                        text: root.launchFailed ? "error_outline" : "info"
+                        iconSize: Appearance.font.pixelSize.normal
+                        color: root.launchFailed
+                            ? Appearance.colors.colError : Appearance.colors.colPrimary
+                        Accessible.ignored: true
                     }
-
                     StyledText {
                         Layout.fillWidth: true
-                        visible: root.releaseState === "ready" || root.releaseState === "partial"
-                        text: root.releaseError || "Schedule by Jikan · times shown as listed"
+                        text: root.launchStatus
                         elide: Text.ElideRight
                         maximumLineCount: 1
-                        font.pixelSize: Appearance.font.pixelSize.smaller
-                        color: root.releaseError ? Appearance.colors.colError : Appearance.colors.colSubtext
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        color: root.launchFailed
+                            ? Appearance.colors.colOnErrorContainer : Appearance.colors.colOnLayer1
                     }
                 }
             }
