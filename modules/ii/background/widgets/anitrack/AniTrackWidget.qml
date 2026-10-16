@@ -128,7 +128,11 @@ AbstractBackgroundWidget {
 
     Component.onCompleted: refreshHistory()
     onVisibleChanged: {
-        if (visible && tabBar.currentIndex === 1)
+        if (!visible)
+            return;
+        if (tabBar.currentIndex === 1)
+            scheduleView.loadSelectedDay();
+        else if (tabBar.currentIndex === 2)
             refreshHistory();
     }
 
@@ -180,7 +184,7 @@ AbstractBackgroundWidget {
     Timer {
         interval: 30000
         repeat: true
-        running: root.visible && tabBar.currentIndex === 1
+        running: root.visible && tabBar.currentIndex === 2
         onTriggered: root.refreshHistory()
     }
 
@@ -224,7 +228,9 @@ AbstractBackgroundWidget {
                     StyledText {
                         text: tabBar.currentIndex === 0
                             ? qsTr("Discover something to watch")
-                            : qsTr("%1 titles saved by ani-cli").arg(root.historyEntries.length)
+                            : tabBar.currentIndex === 1
+                                ? qsTr("Airing by weekday")
+                                : qsTr("%1 titles saved by ani-cli").arg(root.historyEntries.length)
                         font.pixelSize: Appearance.font.pixelSize.small
                         color: Appearance.colors.colSubtext
                     }
@@ -236,11 +242,17 @@ AbstractBackgroundWidget {
                 Layout.fillWidth: true
                 onCurrentIndexChanged: {
                     if (currentIndex === 1)
+                        scheduleView.loadSelectedDay();
+                    else if (currentIndex === 2)
                         root.refreshHistory();
                 }
                 SecondaryTabButton {
                     buttonIcon: "search"
                     buttonText: qsTr("Discover")
+                }
+                SecondaryTabButton {
+                    buttonIcon: "calendar_month"
+                    buttonText: qsTr("Airing")
                 }
                 SecondaryTabButton {
                     buttonIcon: "history"
@@ -254,6 +266,14 @@ AbstractBackgroundWidget {
                 currentIndex: tabBar.currentIndex
 
                 AnimeSearchView {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    apiCoordinator: root
+                    onLaunchRequested: title => root.openAniCli(title)
+                }
+
+                AnimeScheduleView {
+                    id: scheduleView
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     apiCoordinator: root
