@@ -42,32 +42,44 @@ Item {
         return found ? found.name : qsTr("Schedule");
     }
 
+    function dayRange(day) {
+        const targetDay = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"].indexOf(day);
+        const now = new Date();
+        const offset = (targetDay - now.getDay() + 7) % 7;
+        const selectedDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
+        const nextDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate() + 1);
+        const fromDate = offset === 0 ? now : selectedDate;
+        return {
+            from: Math.floor(fromDate.getTime() / 1000),
+            to: Math.floor(nextDate.getTime() / 1000)
+        };
+    }
+
     function imageUrl(anime) {
-        const images = anime?.images || {};
-        const webp = images.webp || {};
-        const jpg = images.jpg || {};
-        const candidate = String(webp.image_url || jpg.image_url || "");
+        const cover = anime?.coverImage || {};
+        const candidate = String(cover.extraLarge || cover.large || cover.medium || "");
         return /^https:\/\//i.test(candidate) ? candidate : "";
     }
 
     function normalizeAnime(item) {
-        const broadcast = item?.broadcast || {};
-        let broadcastTime = String(broadcast.time || "");
-        if (broadcastTime && broadcast.timezone)
-            broadcastTime += ` · ${String(broadcast.timezone).split("/").pop().replace(/_/g, " ")}`;
-        else if (!broadcastTime && broadcast.string)
-            broadcastTime = String(broadcast.string);
-        else if (!broadcastTime)
-            broadcastTime = qsTr("Time not listed");
+        const anime = item?.media || {};
+        const title = anime.title || {};
+        const timestamp = Number(item?.airingAt) * 1000;
+        const airingDate = new Date(timestamp);
+        const time = Number.isFinite(timestamp) && !isNaN(airingDate.getTime())
+            ? airingDate.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"})
+            : qsTr("Time not listed");
+        const episode = Number(item?.episode) || 0;
+        const averageScore = Number(anime.averageScore) || 0;
 
         return {
-            id: Number(item?.mal_id) || 0,
-            title: String(item?.title_english || item?.title || item?.title_japanese || qsTr("Untitled anime")),
-            nativeTitle: String(item?.title_japanese || ""),
-            imageUrl: imageUrl(item),
-            type: String(item?.type || ""),
-            broadcastTime: broadcastTime,
-            score: Number(item?.score) || 0
+            id: Number(anime.id) || 0,
+            title: String(title.english || title.romaji || title.native || qsTr("Untitled anime")),
+            nativeTitle: String(title.native || ""),
+            imageUrl: imageUrl(anime),
+            type: String(anime.format || "").replace(/_/g, " "),
+            broadcastTime: episode > 0 ? qsTr("%1 · Episode %2").arg(time).arg(episode) : time,
+            score: averageScore / 10
         };
     }
 
@@ -125,13 +137,13 @@ Item {
             loadingMore = true;
         else if (entries.length === 0)
             stateName = "waiting";
-        scheduleRequest.interval = Math.max(0, apiCoordinator ? apiCoordinator.jikanDelayMs() : 0);
+        scheduleRequest.interval = Math.max(0, apiCoordinator ? apiCoordinator.aniListDelayMs() : 0);
         scheduleRequest.restart();
     }
 
     function issueScheduleRequest() {
-        if (!apiCoordinator || !apiCoordinator.claimJikanRequest()) {
-            scheduleRequest.interval = Math.max(100, apiCoordinator ? apiCoordinator.jikanDelayMs() : 1200);
+        if (!apiCoordinator || !apiCoordinator.claimAniListRequest()) {
+            scheduleRequest.interval = Math.max(100, apiCoordinator ? apiCoordinator.aniListDelayMs() : 2200);
             scheduleRequest.restart();
             return;
         }
@@ -144,8 +156,23 @@ Item {
         if (!append && entries.length === 0)
             stateName = "loading";
 
-        request.open("GET", `https://api.jikan.moe/v4/schedules?filter=${encodeURIComponent(day)}&sfw=true&limit=25&page=${page}`);
+        const range = root.dayRange(day);
+        const graphQuery = `query ($page: Int!, $from: Int!, $to: Int!) {
+            Page(page: $page, perPage: 25) {
+                pageInfo { hasNextPage }
+                airingSchedules(airingAt_greater: $from, airingAt_lesser: $to, notYetAired: true, sort: TIME) {
+                    id airingAt episode
+                    media {
+                        id title { romaji english native }
+                        averageScore episodes format status genres
+                        coverImage { extraLarge large medium }
+                    }
+                }
+            }
+        }`;
+        request.open("POST", "https://graphql.anilist.co");
         request.setRequestHeader("Accept", "application/json");
+        request.setRequestHeader("Content-Type", "application/json");
         request.onreadystatechange = function() {
             if (request.readyState !== XMLHttpRequest.DONE || root.activeRequest !== request)
                 return;
@@ -154,11 +181,11 @@ Item {
 
             if (request.status !== 200) {
                 if (request.status === 429 && root.apiCoordinator)
-                    root.apiCoordinator.noteJikanRateLimit(request.getResponseHeader("Retry-After"));
+                    root.apiCoordinator.noteAniListRateLimit(request.getResponseHeader("Retry-After"));
                 root.errorMessage = request.status === 429
-                    ? qsTr("Jikan is rate-limiting requests. Wait a little, then retry.")
+                    ? qsTr("AniList is rate-limiting requests. Wait a little, then retry.")
                     : request.status === 0
-                        ? qsTr("Could not reach Jikan. Check your connection and try again.")
+                        ? qsTr("Could not reach AniList. Check your connection and try again.")
                         : qsTr("Weekly schedule failed (HTTP %1). Retry to try again.").arg(request.status);
                 root.loadingMore = false;
                 root.stateName = root.entries.length > 0 ? "ready" : "error";
@@ -167,11 +194,14 @@ Item {
 
             try {
                 const response = JSON.parse(request.responseText);
-                const items = Array.isArray(response.data) ? response.data : [];
+                if (response.errors?.length)
+                    throw new Error(String(response.errors[0]?.message || "AniList returned an error."));
+                const pageData = response?.data?.Page || {};
+                const items = Array.isArray(pageData.airingSchedules) ? pageData.airingSchedules : [];
                 const normalized = items.map(item => root.normalizeAnime(item));
                 root.entries = append ? root.entries.concat(normalized) : normalized;
                 root.currentPage = page;
-                root.hasNextPage = response.pagination?.has_next_page === true;
+                root.hasNextPage = pageData.pageInfo?.hasNextPage === true;
                 root.loadingMore = false;
                 root.errorMessage = "";
                 root.stateName = root.entries.length > 0 ? "ready" : "empty";
@@ -179,10 +209,10 @@ Item {
                 root.errorMessage = qsTr("Could not read this day's schedule. Retry to try again.");
                 root.loadingMore = false;
                 root.stateName = root.entries.length > 0 ? "ready" : "error";
-                console.warn("[AniTrackWidget] Could not parse Jikan schedule response:", error);
+                console.warn("[AniTrackWidget] Could not parse AniList schedule response:", error);
             }
         };
-        request.send();
+        request.send(JSON.stringify({query: graphQuery, variables: {page: page, from: range.from, to: range.to}}));
         requestTimeout.restart();
     }
 
@@ -205,7 +235,7 @@ Item {
 
     Timer {
         id: requestTimeout
-        interval: 15000
+        interval: 20000
         repeat: false
         onTriggered: {
             if (!root.activeRequest)
@@ -236,7 +266,7 @@ Item {
             }
 
             StyledText {
-                text: qsTr("Jikan airing times")
+                text: qsTr("Local airing times")
                 font.pixelSize: Appearance.font.pixelSize.smaller
                 color: Appearance.colors.colSubtext
             }

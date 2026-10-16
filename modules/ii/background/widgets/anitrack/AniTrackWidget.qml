@@ -24,29 +24,30 @@ AbstractBackgroundWidget {
     property string launchStatus: ""
     property bool launchFailed: false
     property var launchCommand: []
-    property double lastJikanRequestMs: 0
-    property double jikanBlockedUntilMs: 0
+    property double lastAniListRequestMs: 0
+    property double aniListBlockedUntilMs: 0
     property double lastLaunchMs: 0
 
-    function jikanDelayMs() {
-        return Math.max(0, 1200 - (Date.now() - lastJikanRequestMs), jikanBlockedUntilMs - Date.now());
+    function aniListDelayMs() {
+        const minimumIntervalMs = 2200;
+        return Math.max(0, minimumIntervalMs - (Date.now() - lastAniListRequestMs), aniListBlockedUntilMs - Date.now());
     }
 
-    function claimJikanRequest() {
-        if (jikanDelayMs() > 0)
+    function claimAniListRequest() {
+        if (aniListDelayMs() > 0)
             return false;
-        lastJikanRequestMs = Date.now();
+        lastAniListRequestMs = Date.now();
         return true;
     }
 
-    function noteJikanRateLimit(retryAfter) {
+    function noteAniListRateLimit(retryAfter) {
         const value = String(retryAfter || "").trim();
         const seconds = Number(value);
         const parsedDate = Date.parse(value);
         const delay = Number.isFinite(seconds) && seconds > 0
             ? seconds * 1000
             : (!isNaN(parsedDate) ? Math.max(1000, parsedDate - Date.now()) : 60000);
-        jikanBlockedUntilMs = Math.max(jikanBlockedUntilMs, Date.now() + delay);
+        aniListBlockedUntilMs = Math.max(aniListBlockedUntilMs, Date.now() + delay);
     }
 
     function refreshHistory() {

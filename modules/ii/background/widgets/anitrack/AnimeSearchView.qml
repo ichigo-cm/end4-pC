@@ -27,28 +27,34 @@ Item {
     property var apiCoordinator: null
 
     function imageUrl(anime) {
-        const images = anime?.images || {};
-        const webp = images.webp || {};
-        const jpg = images.jpg || {};
-        const candidate = String(webp.image_url || jpg.image_url || "");
+        const cover = anime?.coverImage || {};
+        const candidate = String(cover.extraLarge || cover.large || cover.medium || "");
         return /^https:\/\//i.test(candidate) ? candidate : "";
     }
 
     function normalizeAnime(item) {
-        const aired = item?.aired || {};
-        const fromDate = aired.from ? new Date(aired.from) : null;
+        const title = item?.title || {};
+        const date = item?.startDate || {};
+        const averageScore = Number(item?.averageScore) || 0;
+        const statusNames = ({
+            FINISHED: qsTr("Finished"),
+            RELEASING: qsTr("Currently Airing"),
+            NOT_YET_RELEASED: qsTr("Not Yet Released"),
+            CANCELLED: qsTr("Cancelled"),
+            HIATUS: qsTr("On Hiatus")
+        });
         return {
-            id: Number(item?.mal_id) || 0,
-            title: String(item?.title_english || item?.title || item?.title_japanese || qsTr("Untitled anime")),
-            nativeTitle: String(item?.title_japanese || ""),
+            id: Number(item?.id) || 0,
+            title: String(title.english || title.romaji || title.native || qsTr("Untitled anime")),
+            nativeTitle: String(title.native || ""),
             imageUrl: imageUrl(item),
-            year: Number(item?.year) || (fromDate && !isNaN(fromDate.getTime()) ? fromDate.getFullYear() : 0),
-            type: String(item?.type || ""),
+            year: Number(item?.seasonYear) || Number(date.year) || 0,
+            type: String(item?.format || "").replace(/_/g, " "),
             episodes: Number(item?.episodes) || 0,
-            score: Number(item?.score) || 0,
-            status: String(item?.status || ""),
-            synopsis: String(item?.synopsis || ""),
-            genres: Array.isArray(item?.genres) ? item.genres.map(genre => String(genre?.name || "")).filter(name => name !== "") : []
+            score: averageScore / 10,
+            status: statusNames[item?.status] || String(item?.status || ""),
+            synopsis: String(item?.description || ""),
+            genres: Array.isArray(item?.genres) ? item.genres.map(genre => String(genre || "")).filter(name => name !== "") : []
         };
     }
 
@@ -83,7 +89,7 @@ Item {
         loadingMore = false;
         results = [];
         requestState = "waiting";
-        scheduleSearch.interval = apiCoordinator ? apiCoordinator.jikanDelayMs() : 0;
+        scheduleSearch.interval = apiCoordinator ? apiCoordinator.aniListDelayMs() : 0;
         scheduleSearch.restart();
     }
 
@@ -95,13 +101,13 @@ Item {
         queuedAppend = true;
         loadingMore = true;
         errorMessage = "";
-        scheduleSearch.interval = apiCoordinator ? apiCoordinator.jikanDelayMs() : 0;
+        scheduleSearch.interval = apiCoordinator ? apiCoordinator.aniListDelayMs() : 0;
         scheduleSearch.restart();
     }
 
     function issueSearch(query, page, append) {
-        if (!apiCoordinator || !apiCoordinator.claimJikanRequest()) {
-            scheduleSearch.interval = Math.max(100, apiCoordinator ? apiCoordinator.jikanDelayMs() : 1200);
+        if (!apiCoordinator || !apiCoordinator.claimAniListRequest()) {
+            scheduleSearch.interval = Math.max(100, apiCoordinator ? apiCoordinator.aniListDelayMs() : 2200);
             scheduleSearch.restart();
             return;
         }
@@ -113,8 +119,20 @@ Item {
         errorMessage = "";
         if (!append)
             requestState = "loading";
-        request.open("GET", `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&limit=12&page=${page}`);
+        const graphQuery = `query ($search: String!, $page: Int!) {
+            Page(page: $page, perPage: 12) {
+                pageInfo { hasNextPage }
+                media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
+                    id title { romaji english native }
+                    description(asHtml: false) averageScore episodes format status genres
+                    coverImage { extraLarge large medium }
+                    startDate { year } seasonYear
+                }
+            }
+        }`;
+        request.open("POST", "https://graphql.anilist.co");
         request.setRequestHeader("Accept", "application/json");
+        request.setRequestHeader("Content-Type", "application/json");
         request.onreadystatechange = function() {
             if (request.readyState !== XMLHttpRequest.DONE || root.activeRequest !== request)
                 return;
@@ -122,11 +140,11 @@ Item {
             requestTimeout.stop();
             if (request.status !== 200) {
                 if (request.status === 429 && root.apiCoordinator)
-                    root.apiCoordinator.noteJikanRateLimit(request.getResponseHeader("Retry-After"));
+                    root.apiCoordinator.noteAniListRateLimit(request.getResponseHeader("Retry-After"));
                 root.errorMessage = request.status === 429
-                    ? qsTr("Jikan is rate-limiting requests. Try again in a little while.")
+                    ? qsTr("AniList is rate-limiting requests. Try again in a little while.")
                     : request.status === 0
-                        ? qsTr("Could not reach Jikan. Check your connection and try again.")
+                        ? qsTr("Could not reach AniList. Check your connection and try again.")
                         : qsTr("Anime search failed (HTTP %1).").arg(request.status);
                 root.loadingMore = false;
                 if (!append || root.results.length === 0)
@@ -135,11 +153,14 @@ Item {
             }
             try {
                 const response = JSON.parse(request.responseText);
-                const items = Array.isArray(response.data) ? response.data : [];
+                if (response.errors?.length)
+                    throw new Error(String(response.errors[0]?.message || "AniList returned an error."));
+                const pageData = response?.data?.Page || {};
+                const items = Array.isArray(pageData.media) ? pageData.media : [];
                 const normalized = items.map(item => root.normalizeAnime(item));
                 root.results = append ? root.results.concat(normalized) : normalized;
                 root.currentPage = page;
-                root.hasNextPage = response.pagination?.has_next_page === true;
+                root.hasNextPage = pageData.pageInfo?.hasNextPage === true;
                 root.loadingMore = false;
                 root.requestState = root.results.length > 0 ? "ready" : "empty";
             } catch (error) {
@@ -147,10 +168,10 @@ Item {
                 root.loadingMore = false;
                 if (!append || root.results.length === 0)
                     root.requestState = "error";
-                console.warn("[AniTrackWidget] Could not parse Jikan search response:", error);
+                console.warn("[AniTrackWidget] Could not parse AniList search response:", error);
             }
         };
-        request.send();
+        request.send(JSON.stringify({query: graphQuery, variables: {search: query, page: page}}));
         requestTimeout.restart();
     }
 
@@ -184,7 +205,7 @@ Item {
 
     Timer {
         id: requestTimeout
-        interval: 12000
+        interval: 20000
         repeat: false
         onTriggered: {
             if (!root.activeRequest)
@@ -410,7 +431,7 @@ Item {
                         Layout.fillWidth: true
                         horizontalAlignment: Text.AlignHCenter
                         text: root.requestState === "loading" || root.requestState === "waiting"
-                            ? qsTr("Searching Jikan…")
+                            ? qsTr("Searching AniList…")
                             : root.requestState === "error" ? qsTr("Search unavailable")
                             : root.requestState === "empty" ? qsTr("No anime found")
                             : qsTr("Find your next watch")

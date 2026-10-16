@@ -51,15 +51,15 @@ Item {
     function scheduleArtworkMatch() {
         if (!visible || artworkRequest || artworkQueue.length === 0)
             return;
-        artworkTimer.interval = Math.max(0, apiCoordinator ? apiCoordinator.jikanDelayMs() : 1200);
+        artworkTimer.interval = Math.max(0, apiCoordinator ? apiCoordinator.aniListDelayMs() : 2200);
         artworkTimer.restart();
     }
 
     function fetchNextArtworkMatch() {
         if (!visible || artworkRequest || artworkQueue.length === 0)
             return;
-        if (!apiCoordinator || !apiCoordinator.claimJikanRequest()) {
-            artworkTimer.interval = Math.max(100, apiCoordinator ? apiCoordinator.jikanDelayMs() : 1200);
+        if (!apiCoordinator || !apiCoordinator.claimAniListRequest()) {
+            artworkTimer.interval = Math.max(100, apiCoordinator ? apiCoordinator.aniListDelayMs() : 2200);
             artworkTimer.restart();
             return;
         }
@@ -67,8 +67,17 @@ Item {
         const request = new XMLHttpRequest();
         artworkRequest = request;
         activeArtworkKey = current.key;
-        request.open("GET", `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(current.title)}&limit=10`);
+        const graphQuery = `query ($search: String!) {
+            Page(page: 1, perPage: 10) {
+                media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
+                    title { romaji english native }
+                    coverImage { extraLarge large medium }
+                }
+            }
+        }`;
+        request.open("POST", "https://graphql.anilist.co");
         request.setRequestHeader("Accept", "application/json");
+        request.setRequestHeader("Content-Type", "application/json");
         request.onreadystatechange = function() {
             if (request.readyState !== XMLHttpRequest.DONE || root.artworkRequest !== request)
                 return;
@@ -77,7 +86,7 @@ Item {
             artworkTimeout.stop();
             if (request.status === 429) {
                 if (root.apiCoordinator)
-                    root.apiCoordinator.noteJikanRateLimit(request.getResponseHeader("Retry-After"));
+                    root.apiCoordinator.noteAniListRateLimit(request.getResponseHeader("Retry-After"));
                 root.scheduleArtworkMatch();
                 return;
             }
@@ -85,18 +94,18 @@ Item {
             if (request.status === 200) {
                 try {
                     const response = JSON.parse(request.responseText);
-                    const results = Array.isArray(response.data) ? response.data : [];
+                    if (response.errors?.length)
+                        throw new Error(String(response.errors[0]?.message || "AniList returned an error."));
+                    const results = Array.isArray(response?.data?.Page?.media) ? response.data.Page.media : [];
                     const target = current.key;
                     const exact = results.find(item => {
-                        const titles = [item?.title, item?.title_english, item?.title_japanese,
-                            ...(Array.isArray(item?.titles) ? item.titles.map(title => title?.title) : [])];
+                        const title = item?.title || {};
+                        const titles = [title.romaji, title.english, title.native];
                         return titles.some(title => root.normalizedTitle(title) === target);
                     });
                     if (exact) {
-                        const images = exact.images || {};
-                        const webp = images.webp || {};
-                        const jpg = images.jpg || {};
-                        const candidate = String(webp.image_url || jpg.image_url || "");
+                        const cover = exact.coverImage || {};
+                        const candidate = String(cover.extraLarge || cover.large || cover.medium || "");
                         if (/^https:\/\//i.test(candidate))
                             matchedImage = candidate;
                     }
@@ -119,7 +128,7 @@ Item {
             root.artworkQueue = root.artworkQueue.filter(item => item.key !== current.key);
             root.scheduleArtworkMatch();
         };
-        request.send();
+        request.send(JSON.stringify({query: graphQuery, variables: {search: current.title}}));
         artworkTimeout.restart();
     }
 
@@ -142,14 +151,14 @@ Item {
 
     Timer {
         id: artworkTimer
-        interval: 1200
+        interval: 2200
         repeat: false
         onTriggered: root.fetchNextArtworkMatch()
     }
 
     Timer {
         id: artworkTimeout
-        interval: 12000
+        interval: 20000
         repeat: false
         onTriggered: {
             if (!root.artworkRequest)
