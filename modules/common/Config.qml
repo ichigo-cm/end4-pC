@@ -457,6 +457,7 @@ Singleton {
                         property bool soundEnabled: true
                     }
 
+                    // Legacy key retained so the AniTrack replacement keeps existing enable and placement settings.
                     property JsonObject commandCenter: JsonObject {
                         property bool enable: false
                         property string placementStrategy: "free"
