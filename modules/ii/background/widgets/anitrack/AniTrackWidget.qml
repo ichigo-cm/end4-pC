@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import Qt5Compat.GraphicalEffects
 import Quickshell
 import Quickshell.Io
 import qs.modules.common
@@ -74,17 +75,33 @@ AbstractBackgroundWidget {
             ? "?" : String(entry.last_episode);
         const total = Number(entry?.total_episodes);
         const progress = !isNaN(total) && total > 0
-            ? `EP ${episode} / ${total}` : `EP ${episode}`;
-        return `${progress}  ·  ${formatLastSeen(entry?.last_seen_at)}`;
+            ? `Ep ${episode} of ${total}` : `Ep ${episode}`;
+        return `${progress} · ${formatLastSeen(entry?.last_seen_at)}`;
     }
 
     function formatLastSeen(value) {
         if (!value)
-            return "date unavailable";
+            return "Date unknown";
         const date = new Date(value);
         if (isNaN(date.getTime()))
-            return "date unavailable";
+            return "Date unknown";
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const seenStart = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+        const daysAgo = Math.round((todayStart - seenStart) / 86400000);
+        if (daysAgo === 0)
+            return "Today";
+        if (daysAgo === 1)
+            return "Yesterday";
         return Qt.formatDateTime(date, "MMM d");
+    }
+
+    function headerCaption() {
+        if (tabBar.currentIndex === 0)
+            return historyState === "ready"
+                ? `${watchedEntries.length} tracked shows` : "Local watch history";
+        return releaseState === "ready" || releaseState === "partial"
+            ? `${releaseEntries.length} airings this week` : "Weekly airing schedule";
     }
 
     function ensureScheduleFresh() {
@@ -147,16 +164,15 @@ AbstractBackgroundWidget {
 
                 root.releaseAccumulator = root.releaseAccumulator.concat(response.data);
                 const hasNextPage = response.pagination?.has_next_page === true;
-                if (hasNextPage && page < 12) {
+                if (hasNextPage) {
                     root.nextSchedulePage = page + 1;
                     schedulePageDelay.restart();
                     return;
                 }
 
                 root.releaseEntries = root.normalizeSchedule(root.releaseAccumulator);
-                root.releaseState = hasNextPage ? "partial" : "ready";
-                root.releaseError = hasNextPage
-                    ? "Showing the first 12 pages of this week's schedule." : "";
+                root.releaseState = "ready";
+                root.releaseError = "";
                 root.lastScheduleRefreshMs = Date.now();
             } catch (error) {
                 root.failSchedule("Could not read the schedule response.");
@@ -180,7 +196,8 @@ AbstractBackgroundWidget {
         const dayNames = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
         function dayIndex(day) {
             const normalized = String(day || "").toLowerCase();
-            return dayNames.findIndex(name => normalized.startsWith(name));
+            const index = dayNames.findIndex(name => normalized.startsWith(name));
+            return index < 0 ? dayNames.length : index;
         }
         function timeMinutes(time) {
             const match = String(time || "").match(/(\d{1,2}):(\d{2})/);
@@ -191,8 +208,14 @@ AbstractBackgroundWidget {
             .filter(item => item && typeof item === "object")
             .map(item => {
                 const broadcast = item.broadcast || {};
+                const images = item.images || {};
+                const webp = images.webp || {};
+                const jpg = images.jpg || {};
+                const imageUrl = String(webp.small_image_url || jpg.small_image_url
+                    || webp.image_url || jpg.image_url || "");
                 return {
                     title: String(item.title_english || item.title || item.title_japanese || "Untitled anime"),
+                    imageUrl: /^https:\/\//i.test(imageUrl) ? imageUrl : "",
                     day: String(broadcast.day || ""),
                     time: String(broadcast.time || ""),
                     timezone: String(broadcast.timezone || ""),
@@ -203,7 +226,8 @@ AbstractBackgroundWidget {
                 const byDay = dayIndex(left.day) - dayIndex(right.day);
                 if (byDay !== 0)
                     return byDay;
-                return timeMinutes(left.time) - timeMinutes(right.time);
+                const byTime = timeMinutes(left.time) - timeMinutes(right.time);
+                return byTime !== 0 ? byTime : left.title.localeCompare(right.title);
             });
     }
 
@@ -212,15 +236,6 @@ AbstractBackgroundWidget {
             return entry.scheduleText;
         const parts = [entry?.day, entry?.time, entry?.timezone].filter(value => !!value);
         return parts.length > 0 ? parts.join("  ·  ") : "Broadcast time not listed";
-    }
-
-    function scheduleDay(entry) {
-        const day = String(entry?.day || "").trim();
-        return day.length > 0 ? day.slice(0, 3).toUpperCase() : "TBA";
-    }
-
-    function scheduleTime(entry) {
-        return entry?.time || "--:--";
     }
 
     Component.onCompleted: refreshHistory()
@@ -330,13 +345,12 @@ AbstractBackgroundWidget {
                         text: "AniTrack"
                         font.pixelSize: Appearance.font.pixelSize.huge
                         font.weight: Font.Medium
-                        color: Appearance.colors.colOnLayer1
+                        color: Appearance.colors.colOnPrimaryContainer
                     }
                     StyledText {
-                        text: tabBar.currentIndex === 0 ? "LOCAL WATCH HISTORY" : "WEEKLY AIRINGS"
-                        font.pixelSize: Appearance.font.pixelSize.smaller
+                        text: root.headerCaption()
+                        font.pixelSize: Appearance.font.pixelSize.small
                         font.weight: Font.Medium
-                        font.letterSpacing: 0.7
                         color: Appearance.colors.colSubtext
                     }
                 }
@@ -489,10 +503,10 @@ AbstractBackgroundWidget {
                         StyledText {
                             Layout.fillWidth: true
                             horizontalAlignment: Text.AlignHCenter
-                            text: root.historyState === "loading" ? "Reading AniTrack…"
-                                : root.historyState === "missing" ? "AniTrack data not found"
-                                : root.historyState === "error" ? "Could not read AniTrack"
-                                : "No shows tracked yet"
+                            text: root.historyState === "loading" ? "Reading watch history…"
+                                : root.historyState === "missing" ? "No AniTrack data yet"
+                                : root.historyState === "error" ? "Couldn't read AniTrack"
+                                : "Nothing watched yet"
                             font.pixelSize: Appearance.font.pixelSize.normal
                             font.weight: Font.Medium
                             color: Appearance.colors.colOnLayer1
@@ -502,10 +516,10 @@ AbstractBackgroundWidget {
                             horizontalAlignment: Text.AlignHCenter
                             wrapMode: Text.WordWrap
                             text: root.historyState === "missing"
-                                ? "Play an episode through AniTrack and your local history will appear here."
+                                ? "Play an episode with AniTrack to start your list."
                                 : root.historyState === "error" ? root.historyError
-                                : root.historyState === "loading" ? "Reading your local watch history."
-                                : "Your AniTrack watch history will show here."
+                                : root.historyState === "loading" ? "Reading AniTrack's local watch history."
+                                : "Shows you watch through AniTrack will appear here."
                             font.pixelSize: Appearance.font.pixelSize.small
                             color: Appearance.colors.colSubtext
                         }
@@ -534,33 +548,54 @@ AbstractBackgroundWidget {
                             delegate: Item {
                                 required property var modelData
                                 width: releaseList.width
-                                height: 54
+                                height: 56
 
                                 RowLayout {
                                     anchors.fill: parent
                                     spacing: 9
 
-                                    Rectangle {
-                                        Layout.preferredWidth: 44
-                                        Layout.preferredHeight: 40
+                                    Item {
+                                        Layout.preferredWidth: 36
+                                        Layout.preferredHeight: 50
                                         Layout.alignment: Qt.AlignVCenter
-                                        radius: Appearance.rounding.normal
-                                        color: Appearance.colors.colPrimaryContainer
-                                        ColumnLayout {
-                                            anchors.centerIn: parent
-                                            spacing: 0
-                                            StyledText {
-                                                Layout.alignment: Qt.AlignHCenter
-                                                text: root.scheduleDay(modelData)
-                                                font.pixelSize: Appearance.font.pixelSize.smaller
-                                                font.weight: Font.Bold
-                                                color: Appearance.colors.colOnPrimaryContainer
+                                        Rectangle {
+                                            anchors.fill: parent
+                                            radius: Appearance.rounding.small
+                                            color: Appearance.colors.colSurfaceContainerLow
+
+                                            Image {
+                                                id: posterImage
+                                                anchors.fill: parent
+                                                source: modelData.imageUrl
+                                                fillMode: Image.PreserveAspectCrop
+                                                asynchronous: true
+                                                cache: true
+                                                sourceSize.width: 72
+                                                sourceSize.height: 100
+                                                layer.enabled: modelData.imageUrl !== ""
+                                                layer.effect: OpacityMask {
+                                                    maskSource: Rectangle {
+                                                        width: posterImage.width
+                                                        height: posterImage.height
+                                                        radius: Appearance.rounding.small
+                                                    }
+                                                }
                                             }
-                                            StyledText {
-                                                Layout.alignment: Qt.AlignHCenter
-                                                text: root.scheduleTime(modelData)
-                                                font.pixelSize: Appearance.font.pixelSize.smaller
-                                                color: Appearance.colors.colOnPrimaryContainer
+
+                                            MaterialSymbol {
+                                                anchors.centerIn: parent
+                                                text: "movie"
+                                                iconSize: Appearance.font.pixelSize.larger
+                                                color: Appearance.colors.colSubtext
+                                                visible: posterImage.status !== Image.Ready
+                                            }
+
+                                            Rectangle {
+                                                anchors.fill: parent
+                                                radius: parent.radius
+                                                color: "transparent"
+                                                border.width: 1
+                                                border.color: Appearance.colors.colOutlineVariant
                                             }
                                         }
                                     }
@@ -575,7 +610,7 @@ AbstractBackgroundWidget {
                                             maximumLineCount: 1
                                             font.pixelSize: Appearance.font.pixelSize.normal
                                             font.weight: Font.Medium
-                                            color: Appearance.colors.colOnLayer1
+                                            color: Appearance.colors.colOnPrimaryContainer
                                         }
                                         StyledText {
                                             Layout.fillWidth: true
@@ -607,7 +642,7 @@ AbstractBackgroundWidget {
                                 horizontalAlignment: Text.AlignHCenter
                                 text: root.releaseState === "loading" ? "Loading this week's schedule…"
                                     : root.releaseState === "error" ? "Schedule unavailable"
-                                    : "No scheduled anime found"
+                                    : "No airings listed"
                                 font.pixelSize: Appearance.font.pixelSize.normal
                                 font.weight: Font.Medium
                                 color: Appearance.colors.colOnLayer1
@@ -617,8 +652,8 @@ AbstractBackgroundWidget {
                                 horizontalAlignment: Text.AlignHCenter
                                 wrapMode: Text.WordWrap
                                 text: root.releaseState === "error" ? root.releaseError
-                                    : root.releaseState === "loading" ? "Fetching the weekly airing list from Jikan."
-                                    : "Try refreshing the schedule later."
+                                    : root.releaseState === "loading" ? "Fetching the weekly schedule."
+                                    : "Try refreshing later."
                                 font.pixelSize: Appearance.font.pixelSize.small
                                 color: Appearance.colors.colSubtext
                             }
@@ -627,7 +662,8 @@ AbstractBackgroundWidget {
 
                     StyledText {
                         Layout.fillWidth: true
-                        text: root.releaseError || "JIKAN · TIMES AS LISTED BY THE SCHEDULE SOURCE"
+                        visible: root.releaseState === "ready" || root.releaseState === "partial"
+                        text: root.releaseError || "Schedule by Jikan · times shown as listed"
                         elide: Text.ElideRight
                         maximumLineCount: 1
                         font.pixelSize: Appearance.font.pixelSize.smaller
