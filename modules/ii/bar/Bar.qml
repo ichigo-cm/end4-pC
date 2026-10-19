@@ -30,6 +30,9 @@ Scope {
             component: PanelWindow { // Bar window
                 id: barRoot
                 screen: barLoader.modelData
+                readonly property bool isMacStyle: Config.options.appearance.shellStyle === "macos"
+                readonly property bool barAtBottom: !isMacStyle && Config.options.bar.bottom
+                readonly property int contentHeight: isMacStyle ? 34 : Appearance.sizes.barHeight
 
                 Timer {
                     id: showBarTimer
@@ -70,30 +73,30 @@ Scope {
                 }
                 property bool superShow: false
                 property bool mustShow: hoverRegion.containsMouse || superShow
-                    || (Config.options.bar.autoHide.enable && GlobalStates.isFrameHovered(barRoot.screen?.name, Config.options.bar.bottom ? "bottom" : "top"))
+                    || (Config.options.bar.autoHide.enable && GlobalStates.isFrameHovered(barRoot.screen?.name, barRoot.barAtBottom ? "bottom" : "top"))
                 property var thisMonitorData: HyprlandData.monitors.find(m => m.name === barRoot.screen?.name)
                 property bool monitorHasFullscreen: HyprlandData.workspaceById[thisMonitorData?.activeWorkspace?.id]?.hasfullscreen ?? false
                 property bool monitorHasSpecialOpen: (thisMonitorData?.specialWorkspace?.name ?? "") !== ""
                 exclusionMode: ExclusionMode.Ignore
                 property int normalExclusiveZone: (Config?.options.bar.autoHide.enable && (!mustShow || !Config?.options.bar.autoHide.pushWindows))
                     ? 0
-                    : Appearance.sizes.baseBarHeight
-                        + (Config.options.bar.cornerStyle === 1 ? Appearance.sizes.hyprlandGapsOut : 0)
-                        + (Config.options.bar.cornerStyle === 2 ? -6 : 0)
+                    : (isMacStyle ? contentHeight : Appearance.sizes.baseBarHeight)
+                        + (!isMacStyle && Config.options.bar.cornerStyle === 1 ? Appearance.sizes.hyprlandGapsOut : 0)
+                        + (!isMacStyle && Config.options.bar.cornerStyle === 2 ? -6 : 0)
 
                 exclusiveZone: (barContent.centerOnly && Config.options.bar.centerOnlyReserveFrame)
                     ? Config.options.bar.frameThickness
-                    : (Config.options.bar.cornerStyle === 4 || Config.options.bar.cornerStyle === 5 || Config.options.bar.cornerStyle === 6) ? normalExclusiveZone + 4 : normalExclusiveZone
+                    : (!isMacStyle && (Config.options.bar.cornerStyle === 4 || Config.options.bar.cornerStyle === 5 || Config.options.bar.cornerStyle === 6)) ? normalExclusiveZone + 4 : normalExclusiveZone
                 WlrLayershell.namespace: "quickshell:bar"
                 // Overlay layer only while special workspace sits on top of a fullscreen window on this monitor,
                 // else Top layer so fullscreen apps cover the bar as normal (Hyprland buries Top layer under fullscreen+special).
                 WlrLayershell.layer: (monitorHasFullscreen && monitorHasSpecialOpen) ? WlrLayer.Overlay : WlrLayer.Top
-                implicitHeight: Appearance.sizes.barHeight + Appearance.rounding.screenRounding
+                implicitHeight: contentHeight + (isMacStyle ? 0 : Appearance.rounding.screenRounding)
                 // When Overlay-layer, bar shares a layer with the screen-corner click zones (ScreenCorners.qml)
                 // and same-layer overlap is resolved by stacking, not layer priority - bar was winning and
                 // swallowing the tiny corner-open hit rects. Carve them out of the bar's own mask so clicks
                 // reach the corners underneath. Only relevant on the edge the bar and corners share.
-                property bool cutOutCornerOpenZones: (monitorHasFullscreen && monitorHasSpecialOpen) && (Config.options.bar.bottom === Config.options.sidebar.cornerOpen.bottom)
+                property bool cutOutCornerOpenZones: (monitorHasFullscreen && monitorHasSpecialOpen) && (barAtBottom === Config.options.sidebar.cornerOpen.bottom)
                 property int cornerOpenCutWidth: cutOutCornerOpenZones ? Config.options.sidebar.cornerOpen.cornerRegionWidth : 0
                 property int cornerOpenCutHeight: cutOutCornerOpenZones ? Config.options.sidebar.cornerOpen.cornerRegionHeight : 0
                 mask: Region {
@@ -101,14 +104,14 @@ Scope {
                     Region {
                         intersection: Intersection.Subtract
                         x: 0
-                        y: Config.options.bar.bottom ? (barRoot.height - barRoot.cornerOpenCutHeight) : 0
+                        y: barRoot.barAtBottom ? (barRoot.height - barRoot.cornerOpenCutHeight) : 0
                         width: barRoot.cornerOpenCutWidth
                         height: barRoot.cornerOpenCutHeight
                     }
                     Region {
                         intersection: Intersection.Subtract
                         x: barRoot.width - barRoot.cornerOpenCutWidth
-                        y: Config.options.bar.bottom ? (barRoot.height - barRoot.cornerOpenCutHeight) : 0
+                        y: barRoot.barAtBottom ? (barRoot.height - barRoot.cornerOpenCutHeight) : 0
                         width: barRoot.cornerOpenCutWidth
                         height: barRoot.cornerOpenCutHeight
                     }
@@ -117,16 +120,16 @@ Scope {
 
                 // Positioning
                 anchors {
-                    top: !Config.options.bar.bottom
-                    bottom: Config.options.bar.bottom
+                    top: !barAtBottom
+                    bottom: barAtBottom
                     left: true
                     right: true
                 }
 
                 margins {
-                    top: Config.options.bar.cornerStyle === 3 ? 5 : 0
+                    top: !isMacStyle && Config.options.bar.cornerStyle === 3 ? 5 : 0
                     right: (Config.options.interactions.deadPixelWorkaround.enable && barRoot.anchors.right) * -1
-                    bottom: (Config.options.interactions.deadPixelWorkaround.enable && barRoot.anchors.bottom) * -1 || Config.options.bar.cornerStyle === 3 ? 5 : 0
+                    bottom: (Config.options.interactions.deadPixelWorkaround.enable && barRoot.anchors.bottom) * -1 || (!isMacStyle && Config.options.bar.cornerStyle === 3) ? 5 : 0
                 }
 
                 // Include in focus grab
@@ -155,16 +158,18 @@ Scope {
                         }
                     }
 
-                    BarContent {
+                    Loader {
                         id: barContent
-                        
-                        implicitHeight: Appearance.sizes.barHeight
+                        property bool centerOnly: !barRoot.isMacStyle && (item?.centerOnly ?? false)
+                        source: barRoot.isMacStyle ? Qt.resolvedUrl("MacBarContent.qml") : Qt.resolvedUrl("BarContent.qml")
+                        implicitHeight: barRoot.contentHeight
+                        height: barRoot.contentHeight
                         anchors {
                             right: parent.right
                             left: parent.left
                             top: parent.top
                             bottom: undefined
-                            topMargin: (Config?.options.bar.autoHide.enable && !mustShow) ? -Appearance.sizes.barHeight : 0
+                            topMargin: (Config?.options.bar.autoHide.enable && !mustShow) ? -barRoot.contentHeight : 0
                             bottomMargin: (Config.options.interactions.deadPixelWorkaround.enable && barRoot.anchors.bottom) * -1
                             rightMargin: (Config.options.interactions.deadPixelWorkaround.enable && barRoot.anchors.right) * -1
                         }
@@ -177,7 +182,7 @@ Scope {
 
                         states: State {
                             name: "bottom"
-                            when: Config.options.bar.bottom
+                            when: barRoot.barAtBottom
                             AnchorChanges {
                                 target: barContent
                                 anchors {
@@ -190,7 +195,7 @@ Scope {
                             PropertyChanges {
                                 target: barContent
                                 anchors.topMargin: 0
-                                anchors.bottomMargin: (Config?.options.bar.autoHide.enable && !mustShow) ? -Appearance.sizes.barHeight : 0
+                                anchors.bottomMargin: (Config?.options.bar.autoHide.enable && !mustShow) ? -barRoot.contentHeight : 0
                             }
                         }
                     }
@@ -205,12 +210,12 @@ Scope {
                             bottom: undefined
                         }
                         height: Appearance.rounding.screenRounding
-                        active: (showBarBackground && Config.options.bar.cornerStyle === 0 && !barContent.centerOnly)
-                             || (Config.options.bar.cornerStyle === 4 || Config.options.bar.cornerStyle === 6)
+                        active: !barRoot.isMacStyle && ((showBarBackground && Config.options.bar.cornerStyle === 0 && !barContent.centerOnly)
+                             || (Config.options.bar.cornerStyle === 4 || Config.options.bar.cornerStyle === 6))
 
                         states: State {
                             name: "bottom"
-                            when: Config.options.bar.bottom
+                            when: barRoot.barAtBottom
                             AnchorChanges {
                                 target: roundDecorators
                                 anchors {
@@ -233,7 +238,7 @@ Scope {
 
                             RoundCorner {
                                 id: leftCorner
-                                visible: Config.options.bar.cornerStyle === 0 || barContent.effectiveLeftLayout.length > 0
+                                visible: Config.options.bar.cornerStyle === 0 || (barContent.item?.effectiveLeftLayout?.length ?? 0) > 0
                                 anchors {
                                     top: parent.top
                                     bottom: parent.bottom
@@ -246,7 +251,7 @@ Scope {
                                 corner: RoundCorner.CornerEnum.TopLeft
                                 states: State {
                                     name: "bottom"
-                                    when: Config.options.bar.bottom
+                                    when: barRoot.barAtBottom
                                     PropertyChanges {
                                         leftCorner.corner: RoundCorner.CornerEnum.BottomLeft
                                     }
@@ -254,11 +259,11 @@ Scope {
                             }
                             RoundCorner {
                                 id: rightCorner
-                                visible: Config.options.bar.cornerStyle === 0 || barContent.effectiveRightLayout.length > 0
+                                visible: Config.options.bar.cornerStyle === 0 || (barContent.item?.effectiveRightLayout?.length ?? 0) > 0
                                 anchors {
                                     right: parent.right
-                                    top: !Config.options.bar.bottom ? parent.top : undefined
-                                    bottom: Config.options.bar.bottom ? parent.bottom : undefined
+                                    top: !barRoot.barAtBottom ? parent.top : undefined
+                                    bottom: barRoot.barAtBottom ? parent.bottom : undefined
                                 }
                                 implicitSize: Appearance.rounding.screenRounding
                                 color: parent.decoratorColor
@@ -266,7 +271,7 @@ Scope {
                                 corner: RoundCorner.CornerEnum.TopRight
                                 states: State {
                                     name: "bottom"
-                                    when: Config.options.bar.bottom
+                                    when: barRoot.barAtBottom
                                     PropertyChanges {
                                         rightCorner.corner: RoundCorner.CornerEnum.BottomRight
                                     }

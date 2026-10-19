@@ -7,6 +7,7 @@ import qs
 import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
+import qs.modules.common.functions
 
 Item {
     id: diMediaRoot
@@ -30,15 +31,15 @@ Item {
 
         Rectangle {
             id: artMask
-            width: root.isMaterial ? root.pillHeight : root.pillHeight - 8
-            height: root.isMaterial ? root.pillHeight : root.pillHeight - 8
+            width: root.isMacStyle ? root.pillHeight - 4 : root.isMaterial ? root.pillHeight : root.pillHeight - 8
+            height: root.isMacStyle ? root.pillHeight - 4 : root.isMaterial ? root.pillHeight : root.pillHeight - 8
             anchors {
                 left: parent.left
                 leftMargin: root.isMaterial ? 0 : 4
                 verticalCenter: parent.verticalCenter
             }
             radius: root.isMaterial ? Appearance.rounding?.full : Appearance.rounding?.small ?? 8
-            color: Appearance.colors.colLayer1
+            color: root.isMacStyle ? ColorUtils.applyAlpha(root.islandContentColor, 0.16) : Appearance.colors.colLayer1
             clip: true
 
             layer.enabled: true
@@ -64,7 +65,7 @@ Item {
                 anchors.centerIn: parent
                 text: "music_note"
                 iconSize: 14
-                color: Appearance.colors.colOnLayer1
+                color: root.isMacStyle ? root.islandContentColor : Appearance.colors.colOnLayer1
                 visible: (root.activePlayer?.trackArtUrl ?? "") === ""
             }
         }
@@ -94,7 +95,7 @@ Item {
                     : (islandVisualizer.visible ? islandVisualizer.left : parent.right))
                 rightMargin: 8
             }
-            spacing: root.isMaterial ? -2 : -4
+            spacing: root.isMacStyle ? 0 : root.isMaterial ? -2 : -4
             opacity: root.mediaTrackInfoVisible ? 1 : 0
 
             Behavior on opacity {
@@ -106,7 +107,7 @@ Item {
                 text: root.activePlayer?.trackTitle ?? ""
                 font.pixelSize: Appearance.font.pixelSize.smaller
                 font.weight: Font.DemiBold
-                color: Appearance.colors.colOnLayer0
+                color: root.islandContentColor
                 elide: Text.ElideRight
                 wrapMode: Text.NoWrap
                 maximumLineCount: 1
@@ -115,11 +116,29 @@ Item {
                 Layout.fillWidth: true
                 text: root.activePlayer?.trackArtist ?? ""
                 font.pixelSize: Appearance.font.pixelSize.smallest
-                color: Appearance.colors.colOnLayer0
+                color: root.islandContentColor
                 opacity: 0.7
                 elide: Text.ElideRight
                 wrapMode: Text.NoWrap
                 maximumLineCount: 1
+            }
+
+            Rectangle {
+                id: trackProgress
+                visible: root.isMacStyle && (root.activePlayer?.length ?? 0) > 0
+                Layout.fillWidth: true
+                Layout.preferredHeight: 2
+                Layout.maximumHeight: 2
+                radius: 1
+                color: ColorUtils.applyAlpha(root.islandContentColor, 0.24)
+
+                Rectangle {
+                    width: parent.width * Math.max(0, Math.min(1,
+                        (root.activePlayer?.position ?? 0) / Math.max(1, root.activePlayer?.length ?? 1)))
+                    height: parent.height
+                    radius: parent.radius
+                    color: root.islandContentColor
+                }
             }
 
             readonly property real widestLineWidth: Math.max(trackTitleMetrics.implicitWidth, trackArtistMetrics.implicitWidth)
@@ -151,8 +170,8 @@ Item {
             points: GlobalStates.visualizerPoints
             maxVisualizerValue: 1000
             smoothing: 2
-            color: Appearance.colors.colOnLayer0
-            visible: Config.options.bar.dynamicIsland.visualizerStyle === "wave"
+            color: root.islandContentColor
+            visible: !mediaControlsRow.visible && Config.options.bar.dynamicIsland.visualizerStyle === "wave"
         }
 
         Visualizer {
@@ -169,8 +188,8 @@ Item {
             dotSize: 3
             dotSpacing: 3
             maxBarHeight: root.isMaterial ? root.pillHeight * 1.5 : root.pillHeight * 0.85
-            barColor: Appearance.colors.colOnLayer0
-            visible: !Config.options.bar.dynamicIsland.showMediaControls
+            barColor: root.islandContentColor
+            visible: !mediaControlsRow.visible
                 && Config.options.bar.dynamicIsland.visualizerStyle === "dots"
         }
 
@@ -181,21 +200,38 @@ Item {
                 rightMargin: root.isMaterial ? 4 : 8
                 verticalCenter: parent.verticalCenter
             }
-            spacing: root.isMaterial ? -2 : -4
-            visible: Config.options.bar.dynamicIsland.showMediaControls
+            spacing: root.isMacStyle ? 4 : root.isMaterial ? -2 : -4
+            visible: root.isMacStyle
+                ? ((root.activePlayer?.canGoPrevious ?? false)
+                    || (root.activePlayer?.canTogglePlaying ?? false)
+                    || (root.activePlayer?.canGoNext ?? false))
+                : Config.options.bar.dynamicIsland.showMediaControls
 
             Item {
                 Layout.alignment: Qt.AlignVCenter
-                implicitWidth: 20
-                implicitHeight: 20
+                implicitWidth: 24
+                implicitHeight: 24
                 visible: root.activePlayer?.canGoPrevious ?? false
+                activeFocusOnTab: root.isMacStyle && visible
+                Accessible.role: Accessible.Button
+                Accessible.name: Translation.tr("Previous track")
+                Keys.onReturnPressed: root.activePlayer?.previous()
+                Keys.onSpacePressed: root.activePlayer?.previous()
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: height / 2
+                    color: "transparent"
+                    border.width: parent.activeFocus ? 1 : 0
+                    border.color: root.islandContentColor
+                }
 
                 MaterialSymbol {
                     anchors.centerIn: parent
                     text: "skip_previous"
                     fill: 1
                     iconSize: root.isMaterial ? 20 : 16
-                    color: Appearance.colors.colOnLayer0
+                    color: root.islandContentColor
                 }
 
                 MouseArea {
@@ -207,36 +243,70 @@ Item {
 
             Item {
                 Layout.alignment: Qt.AlignVCenter
-                implicitWidth: 22
-                implicitHeight: 22
+                implicitWidth: 24
+                implicitHeight: 24
+                visible: root.activePlayer?.canTogglePlaying ?? false
+                activeFocusOnTab: root.isMacStyle && visible
+                Accessible.role: Accessible.Button
+                Accessible.name: root.activePlayer?.isPlaying
+                    ? Translation.tr("Pause") : Translation.tr("Play")
+                Keys.onReturnPressed: {
+                    if (root.activePlayer?.canTogglePlaying) root.activePlayer.togglePlaying()
+                }
+                Keys.onSpacePressed: {
+                    if (root.activePlayer?.canTogglePlaying) root.activePlayer.togglePlaying()
+                }
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: height / 2
+                    color: "transparent"
+                    border.width: parent.activeFocus ? 1 : 0
+                    border.color: root.islandContentColor
+                }
 
                 MaterialSymbol {
                     anchors.centerIn: parent
                     text: root.activePlayer?.isPlaying ? "pause" : "play_arrow"
                     fill: 1
                     iconSize: root.isMaterial ? 20 : 18
-                    color: Appearance.colors.colOnLayer0
+                    color: root.islandContentColor
                 }
 
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: root.activePlayer?.togglePlaying()
+                    onClicked: {
+                        if (root.activePlayer?.canTogglePlaying) root.activePlayer.togglePlaying()
+                    }
                 }
             }
 
             Item {
                 Layout.alignment: Qt.AlignVCenter
-                implicitWidth: 20
-                implicitHeight: 20
+                implicitWidth: 24
+                implicitHeight: 24
                 visible: root.activePlayer?.canGoNext ?? false
+                activeFocusOnTab: root.isMacStyle && visible
+                Accessible.role: Accessible.Button
+                Accessible.name: Translation.tr("Next track")
+                Keys.onReturnPressed: root.activePlayer?.next()
+                Keys.onSpacePressed: root.activePlayer?.next()
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: height / 2
+                    color: "transparent"
+                    border.width: parent.activeFocus ? 1 : 0
+                    border.color: root.islandContentColor
+                }
 
                 MaterialSymbol {
                     anchors.centerIn: parent
                     text: "skip_next"
                     fill: 1
                     iconSize: root.isMaterial ? 20 : 16
-                    color: Appearance.colors.colOnLayer0
+                    color: root.islandContentColor
                 }
 
                 MouseArea {

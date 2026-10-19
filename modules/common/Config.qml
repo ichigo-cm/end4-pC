@@ -106,6 +106,7 @@ Singleton {
             }
 
             property JsonObject appearance: JsonObject {
+                property string shellStyle: "material" // "material" (existing M3/HUG) or "macos"
                 property string uiBackground: "themed"
                 property bool extraBackgroundTint: true
                 property int fakeScreenRounding: 2 // 0: None | 1: Always | 2: When not fullscreen

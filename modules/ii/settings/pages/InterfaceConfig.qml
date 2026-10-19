@@ -16,6 +16,33 @@ ContentPage {
         spacing: 20
 
         ContentSection {
+            icon: "toolbar"
+            shape: MaterialShape.Shape.Cookie6Sided
+            title: Translation.tr("Desktop appearance")
+            GroupedList {
+                ConfigSelectionArray {
+                    text: Translation.tr("Menu bar and Dynamic Island")
+                    icon: "style"
+                    currentValue: Config.options.appearance.shellStyle
+                    onSelected: newValue => { Config.options.appearance.shellStyle = newValue }
+                    options: [
+                        { displayName: Translation.tr("Material 3 / HUG"), icon: "category", value: "material" },
+                        { displayName: Translation.tr("macOS"), icon: "dock_to_bottom", value: "macos" }
+                    ]
+                }
+                StyledText {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 16
+                    Layout.rightMargin: 16
+                    Layout.bottomMargin: 6
+                    text: Translation.tr("Switches the top bar and Dynamic Island immediately. Material 3 / HUG keeps the original layout.")
+                    color: Appearance.colors.colSubtext
+                    wrapMode: Text.WordWrap
+                }
+            }
+        }
+
+        ContentSection {
             icon: "palette"
             shape: MaterialShape.Shape.Cookie9Sided
             title: Translation.tr("Color Schemes")

@@ -77,7 +77,8 @@ Singleton {
         onTriggered: root.startupLockPending = false
     }
 
-    readonly property bool dynamicIslandEnabled: Config.options.bar.layouts.leftLayout.includes("dynamicIsland")
+    readonly property bool dynamicIslandEnabled: Config.options.appearance.shellStyle === "macos"
+        || Config.options.bar.layouts.leftLayout.includes("dynamicIsland")
         || Config.options.bar.layouts.middleLayout.includes("dynamicIsland")
         || Config.options.bar.layouts.rightLayout.includes("dynamicIsland")
 

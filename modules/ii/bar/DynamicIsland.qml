@@ -14,25 +14,30 @@ import qs.modules.common.widgets
 Item {
     id: root
     property bool mirrored: false
+    readonly property bool isMacStyle: Config.options.appearance.shellStyle === "macos"
+    readonly property color islandContentColor: isMacStyle
+        ? (Appearance.m3colors.darkmode ? Appearance.m3colors.m3onBackground : Appearance.m3colors.m3inverseOnSurface)
+        : Appearance.colors.colOnLayer0
 
-    readonly property real pillHeight: 32
-    readonly property real idleCollapsedWidth: 144
-    readonly property real sessionWidth: 164
+    readonly property real pillHeight: isMacStyle ? 28 : 32
+    readonly property real idleCollapsedWidth: isMacStyle ? 176 : 144
+    readonly property real sessionWidth: isMacStyle ? 220 : 164
     property real idleTextContentWidth: 0
     readonly property real idleWidth: Math.max(root.idleCollapsedWidth, root.idleTextContentWidth)
-    readonly property real mediaCollapsedWidth: 140
-    readonly property real mediaExpandedWidthCap: 220
+    readonly property real mediaCollapsedWidth: isMacStyle ? 190 : 140
+    readonly property real mediaExpandedWidthCap: isMacStyle ? 320 : 220
     property real mediaTextContentWidth: 0
-    property bool mediaTrackInfoVisible: mediaHoverHandler.hovered || mediaTrackChangeTimer.running
+    property bool mediaTrackInfoVisible: isMacStyle || mediaHoverHandler.hovered || mediaTrackChangeTimer.running
     readonly property real mediaExpandedWidth: Math.min(root.mediaExpandedWidthCap, root.mediaTextContentWidth)
     readonly property real mediaWidth: root.mediaTrackInfoVisible ? root.mediaExpandedWidth : root.mediaCollapsedWidth
-    readonly property real timerWidth: 130
+    readonly property real timerWidth: isMacStyle ? 180 : 130
     readonly property real osdWidth: 132
-    readonly property real notificationWidth: 220
+    readonly property real notificationWidth: isMacStyle ? 300 : 220
     readonly property real batteryWidth: 170
-    readonly property real badgeSize: 32
+    readonly property real recordingWidth: isMacStyle ? 132 : 112
+    readonly property real badgeSize: isMacStyle ? 24 : 32
     readonly property real badgeSpacing: 6
-    readonly property bool isMaterial: Config.options.bar.cornerStyle === 3 || Config.options.bar.cornerStyle === 4
+    readonly property bool isMaterial: !isMacStyle && (Config.options.bar.cornerStyle === 3 || Config.options.bar.cornerStyle === 4)
     property bool vertical: Config.options.bar.vertical
 
     property string manualFocusId: ""
@@ -73,6 +78,12 @@ Item {
 
     property string engagedTimerKind: ""
     readonly property bool hasActiveTimer: root.engagedTimerKind !== ""
+
+    Component.onCompleted: {
+        if (TimerService.pomodoroRunning) root.engagedTimerKind = "pomodoro"
+        else if (TimerService.countdownRunning) root.engagedTimerKind = "countdown"
+        else if (TimerService.stopwatchRunning) root.engagedTimerKind = "stopwatch"
+    }
 
     Connections {
         target: TimerService
@@ -212,6 +223,10 @@ Item {
             const forced = root.activeOthers.find(p => p.id === root.manualFocusId)
             if (forced) return forced
         }
+        if (root.isMacStyle) {
+            const media = root.activeOthers.find(p => p.id === "media")
+            if (media) return media
+        }
         return root.activeOthers[0] ?? null
     }
 
@@ -237,16 +252,19 @@ Item {
     }
 
     readonly property string activeContentId: root.displayedProvider?.id ?? "idle"
+    readonly property real badgeExtent: !root.vertical && root.badgeProviders.length > 0
+        ? root.badgeProviders.length * (root.badgeSpacing + root.badgeSize)
+        : 0
 
     implicitHeight: root.pillHeight
     implicitWidth: (root.displayedProvider?.width ?? root.idleWidth)
-        + (!root.vertical && root.badgeProviders.length > 0
-            ? root.badgeProviders.length * (root.badgeSpacing + root.badgeSize)
-            : 0)
+        + root.badgeExtent * (root.isMacStyle ? 2 : 1)
 
     Behavior on implicitWidth {
         NumberAnimation {
-            duration: 350
+            duration: root.isMacStyle
+                ? (Config.options.hyprland.animations.enable ? 220 : 0)
+                : 350
             easing.type: Easing.BezierSpline
             easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial
         }
@@ -254,10 +272,12 @@ Item {
 
     Rectangle {
         id: pill
-        anchors.left: parent.left
+        anchors.left: root.isMacStyle ? undefined : parent.left
+        anchors.horizontalCenter: root.isMacStyle ? parent.horizontalCenter : undefined
         width: root.displayedProvider?.width ?? root.idleWidth
         height: root.pillHeight
-        color: root.isMaterial || (GlobalStates.barCenterOnly && Config.options.bar.cornerStyle === 0) ? "transparent" : Config.options.bar.followFrameColor
+        color: root.isMacStyle ? Appearance.m3colors.m3scrim
+            : root.isMaterial || (GlobalStates.barCenterOnly && Config.options.bar.cornerStyle === 0) ? "transparent" : Config.options.bar.followFrameColor
             ? Appearance.getColorFromName(Config.options.bar.frameColor)
             : Appearance.colors.colUiBackground
         radius: height / 2
@@ -266,7 +286,9 @@ Item {
 
         Behavior on width {
             NumberAnimation {
-                duration: 350
+                duration: root.isMacStyle
+                    ? (Config.options.hyprland.animations.enable ? 220 : 0)
+                    : 350
                 easing.type: Easing.BezierSpline
                 easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial
             }
@@ -296,15 +318,26 @@ Item {
             onTriggered: idleToggleWheelHandler.coolingDown = false
         }
 
-        Loader {
+    Loader {
             id: contentLoader
             anchors.fill: parent
-            sourceComponent: root.displayedProvider?.component ?? idleComponent
+            sourceComponent: root.displayedProvider?.component ?? (root.isMacStyle ? macIdleComponent : idleComponent)
             active: !root.vertical
+            onSourceComponentChanged: {
+                if (root.isMacStyle) opacity = 0
+            }
 
             onLoaded: {
+                if (root.isMacStyle) opacity = 1
                 if (root.displayedProvider?.id === "session" && item) {
                     item.forceActiveFocus()
+                }
+            }
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: root.isMacStyle && Config.options.hyprland.animations.enable ? 140 : 0
+                    easing.type: Easing.OutCubic
                 }
             }
         }
@@ -312,6 +345,11 @@ Item {
         Component {
             id: idleComponent
             DiIdle { di: root }
+        }
+
+        Component {
+            id: macIdleComponent
+            Item { }
         }
 
         Component {
@@ -377,7 +415,7 @@ Item {
                     text: root.formatRecordingTime(root.recordingElapsedSeconds)
                     font.pixelSize: Appearance.font.pixelSize.small
                     font.features: { "tnum": 1 }
-                    color: Appearance.colors.colOnLayer0
+                    color: root.islandContentColor
                 }
             }
         }
@@ -441,9 +479,11 @@ Item {
 
                 MaterialShapeWrappedMaterialSymbol {
                     anchors.fill: parent
-                    wrappedShape: MaterialShape.Shape.Cookie7Sided
-                    color: root.isMaterial ? Appearance.colors.colPrimary : Appearance.colors.colLayer0
-                    colSymbol: root.isMaterial ? Appearance.colors.colOnPrimary : Appearance.colors.colOnLayer0
+                    wrappedShape: root.isMacStyle ? MaterialShape.Shape.Circle : MaterialShape.Shape.Cookie7Sided
+                    color: root.isMacStyle ? Appearance.m3colors.m3scrim
+                        : root.isMaterial ? Appearance.colors.colPrimary : Appearance.colors.colLayer0
+                    colSymbol: root.isMacStyle ? root.islandContentColor
+                        : root.isMaterial ? Appearance.colors.colOnPrimary : Appearance.colors.colOnLayer0
                     text: root.iconForProviderId(badgeItem.modelData.id)
                     iconSize: 16
                     fill: 1

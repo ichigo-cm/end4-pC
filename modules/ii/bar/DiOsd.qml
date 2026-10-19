@@ -24,6 +24,7 @@ RowLayout {
 
     MaterialShapeWrappedMaterialSymbol {
         Layout.alignment: Qt.AlignVCenter
+        visible: !root.isMacStyle
         wrappedShape: MaterialShape.Shape.Cookie12Sided
         color: Appearance.colors.colPrimary
         colSymbol: Appearance.colors.colOnPrimary
@@ -31,6 +32,15 @@ RowLayout {
         iconSize: root.isMaterial ? 20 : 16
         fill: 1
         padding: 4
+    }
+
+    MaterialSymbol {
+        Layout.alignment: Qt.AlignVCenter
+        visible: root.isMacStyle
+        text: root.iconForProviderId("osd")
+        iconSize: 16
+        fill: 1
+        color: root.islandContentColor
     }
 
     Item { Layout.fillWidth: true }
@@ -46,6 +56,6 @@ RowLayout {
         }
         font.pixelSize: root.isMaterial ? Appearance.font.pixelSize.normal : Appearance.font.pixelSize.small
         font.features: { "tnum": 1 }
-        color: Appearance.colors.colOnLayer0
+        color: root.islandContentColor
     }
 }
