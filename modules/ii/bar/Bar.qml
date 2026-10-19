@@ -162,7 +162,6 @@ Scope {
                         id: barContent
                         property bool centerOnly: !barRoot.isMacStyle && (item?.centerOnly ?? false)
                         source: barRoot.isMacStyle ? Qt.resolvedUrl("MacBarContent.qml") : Qt.resolvedUrl("BarContent.qml")
-                        implicitHeight: barRoot.contentHeight
                         height: barRoot.contentHeight
                         anchors {
                             right: parent.right
