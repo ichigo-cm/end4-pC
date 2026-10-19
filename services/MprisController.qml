@@ -110,13 +110,6 @@ Singleton {
 
 	onActivePlayerChanged: this.updateTrack();
 
-	Timer {
-		interval: Config.options.resources.updateInterval
-		repeat: true
-		running: Config.options.appearance.shellStyle === "macos" && (root.activePlayer?.isPlaying ?? false)
-		onTriggered: root.activePlayer?.positionChanged()
-	}
-
 	function updateTrack() {
 		//console.log(`update: ${this.activePlayer?.trackTitle ?? ""} : ${this.activePlayer?.trackArtists}`)
 		this.activeTrack = {

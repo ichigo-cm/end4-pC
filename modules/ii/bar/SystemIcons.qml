@@ -12,7 +12,6 @@ Item {
     id: root
     property color contentColor: Appearance.colors.colOnLayer1
     property bool contentColorOverridden: false
-    property int iconSize: Appearance.font.pixelSize.larger
     property bool borderless: Config.options.bar.borderless
     property bool showDate: Config.options.bar.verbose
     property bool vertical: Config.options.bar.vertical
@@ -57,7 +56,7 @@ Item {
                             if (Audio.sink?.audio?.muted) return "volume_off"
                             return "volume_up";
                         }
-                        iconSize: root.iconSize
+                        iconSize: Appearance.font.pixelSize.larger
                         color: root.iconColor
                     }
 
@@ -83,7 +82,7 @@ Item {
                             if (Audio.sink?.audio?.muted) return "volume_off";
                             return "volume_up";
                         }
-                        iconSize: root.iconSize
+                        iconSize: Appearance.font.pixelSize.larger
                         color: root.iconColor
                     }
 
@@ -120,7 +119,7 @@ Item {
             reveal: Audio.source?.audio?.muted ?? false
             MaterialSymbol {
                 text: "mic_off"
-                iconSize: root.iconSize
+                iconSize: Appearance.font.pixelSize.larger
                 color: root.iconColor
             }
         }
@@ -130,13 +129,13 @@ Item {
         }
         MaterialSymbol {
             text: Network.materialSymbol
-            iconSize: root.iconSize
+            iconSize: Appearance.font.pixelSize.larger
             color: root.iconColor
         }
         MaterialSymbol {
             visible: BluetoothStatus.available
             text: BluetoothStatus.connected ? "bluetooth_connected" : BluetoothStatus.enabled ? "bluetooth" : "bluetooth_disabled"
-            iconSize: root.iconSize
+            iconSize: Appearance.font.pixelSize.larger
             color: root.iconColor
         }
         Repeater {
@@ -160,7 +159,7 @@ Item {
                     default: return "battery_alert";
                     }
                 }
-                iconSize: root.iconSize
+                iconSize: Appearance.font.pixelSize.larger
                 color: critical ? Appearance.colors.colError : root.iconColor
                 fill: 1
 

@@ -87,7 +87,6 @@ Item {
 
     Timer {
         running: activePlayer?.playbackState == MprisPlaybackState.Playing
-            && Config.options.appearance.shellStyle !== "macos"
         interval: Config.options.resources.updateInterval
         repeat: true
         onTriggered: activePlayer.positionChanged()

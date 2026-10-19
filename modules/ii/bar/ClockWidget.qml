@@ -11,7 +11,6 @@ BarWidgetSwitcher {
     property bool contentColorOverridden: false
     property bool borderless: Config.options.bar.borderless
     property bool showDate: Config.options.time.showDate
-    property int timePixelSize: Appearance.font.pixelSize.small
     property var today: new Date()
     readonly property string dateTimeString: DateTime.time
     readonly property bool hasAmPm: dateTimeString.toLowerCase().includes("am") || dateTimeString.toLowerCase().includes("pm")
@@ -125,7 +124,7 @@ BarWidgetSwitcher {
                 text: "•"
             }
             StyledText {
-                font.pixelSize: root.timePixelSize
+                font.pixelSize: Appearance.font.pixelSize.small
                 color: root.contentColor
                 text: DateTime.time
                 font.letterSpacing: -0.4

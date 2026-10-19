@@ -25,7 +25,7 @@ RowLayout {
             text: root.timerRunning() ? "pause" : "play_arrow"
             fill: 1
             iconSize: root.isMaterial ? 24 : 16
-            color: root.islandContentColor
+            color: Appearance.colors.colOnLayer0
         }
 
         MouseArea {
@@ -46,7 +46,7 @@ RowLayout {
             text: "stop_circle"
             fill: 1
             iconSize: root.isMaterial ? 24 : 16
-            color: root.islandContentColor
+            color: Appearance.colors.colOnLayer0
         }
 
         MouseArea {
@@ -59,21 +59,10 @@ RowLayout {
     Item { Layout.fillWidth: true }
 
     StyledText {
-        visible: root.isMacStyle
-        Layout.alignment: Qt.AlignVCenter
-        text: root.engagedTimerKind === "pomodoro" ? Translation.tr("Focus")
-            : root.engagedTimerKind === "countdown" ? Translation.tr("Timer")
-            : Translation.tr("Stopwatch")
-        font.pixelSize: Appearance.font.pixelSize.smallest
-        color: root.islandContentColor
-        opacity: 0.75
-    }
-
-    StyledText {
         Layout.alignment: Qt.AlignVCenter
         text: root.timerValueText()
         font.pixelSize: Appearance.font.pixelSize.small
         font.features: { "tnum": 1 }
-        color: root.islandContentColor
+        color: Appearance.colors.colOnLayer0
     }
 }

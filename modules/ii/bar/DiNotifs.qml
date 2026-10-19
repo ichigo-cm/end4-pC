@@ -18,26 +18,13 @@ Item {
         height: 20
         anchors {
             left: parent.left
-            leftMargin: root.isMacStyle ? 8 : root.isMaterial ? 4 : 12
+            leftMargin: root.isMaterial ? 4 : 12
             verticalCenter: parent.verticalCenter
         }
         source: SystemAppearance.iconPath(notif?.appIcon ?? "", "notification-symbolic")
         visible: (notif?.appIcon ?? "") !== ""
         fillMode: Image.PreserveAspectFit
         asynchronous: true
-    }
-
-    MaterialSymbol {
-        id: macNotificationIcon
-        anchors {
-            left: parent.left
-            leftMargin: 8
-            verticalCenter: parent.verticalCenter
-        }
-        text: "notifications"
-        iconSize: 17
-        color: root.islandContentColor
-        visible: root.isMacStyle && (notif?.appIcon ?? "") === ""
     }
 
     MaterialShapeWrappedMaterialSymbol {
@@ -54,17 +41,17 @@ Item {
         iconSize: root.isMaterial ? 20 : 14
         fill: 1
         padding: 4
-        visible: !root.isMacStyle && (notif?.appIcon ?? "") === ""
+        visible: (notif?.appIcon ?? "") === ""
     }
 
     ColumnLayout {
         id: notifTextColumn
         anchors {
-            left: root.isMacStyle && !notifIcon.visible ? macNotificationIcon.right : notifIcon.right
-            leftMargin: root.isMacStyle ? 6 : root.isMaterial ? 14 : 2
+            left: notifIcon.right
+            leftMargin: root.isMaterial ? 14 : 2
             verticalCenter: parent.verticalCenter
-            right: root.isMacStyle ? parent.right : nowLabel.left
-            rightMargin: root.isMacStyle ? 12 : 8
+            right: nowLabel.left
+            rightMargin: 8
         }
         spacing: root.isMaterial ? -2 : -4
 
@@ -73,7 +60,7 @@ Item {
             text: (notif?.summary ?? "").replace(/\n/g, " ")
             font.pixelSize: Appearance.font.pixelSize.smaller
             font.weight: Font.DemiBold
-            color: root.islandContentColor
+            color: Appearance.colors.colOnLayer0
             elide: Text.ElideRight
             wrapMode: Text.NoWrap
             maximumLineCount: 1
@@ -82,7 +69,7 @@ Item {
             Layout.fillWidth: true
             text: (notif?.body ?? "").replace(/\n/g, " ")
             font.pixelSize: Appearance.font.pixelSize.smallest
-            color: root.islandContentColor
+            color: Appearance.colors.colOnLayer0
             opacity: 0.7
             elide: Text.ElideRight
             wrapMode: Text.NoWrap
@@ -92,7 +79,6 @@ Item {
 
     StyledText {
         id: nowLabel
-        visible: !root.isMacStyle
         anchors {
             right: parent.right
             top: parent.top
@@ -101,14 +87,7 @@ Item {
         }
         text: DateTime.time
         font.pixelSize: Appearance.font.pixelSize.small - 2
-        color: root.islandContentColor
+        color: Appearance.colors.colOnLayer0
         opacity: 0.8
-    }
-
-    MouseArea {
-        anchors.fill: parent
-        enabled: root.isMacStyle
-        cursorShape: Qt.PointingHandCursor
-        onClicked: GlobalStates.sidebarRightOpen = true
     }
 }

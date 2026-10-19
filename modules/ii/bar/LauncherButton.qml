@@ -9,7 +9,6 @@ RippleButton {
     id: root
     property color contentColor: Appearance.colors.colOnLayer0
     property bool contentColorOverridden: false
-    property int iconSize: 18
     property bool vertical: Config.options.bar.vertical
     property bool isMaterial: Config.options.bar.cornerStyle === 3 || Config.options.bar.cornerStyle === 4
 
@@ -31,7 +30,7 @@ RippleButton {
 
     MaterialSymbol {
         anchors.centerIn: parent
-        iconSize: root.iconSize
+        iconSize: 18
         text: "search"
         color: root.contentColor
     }
