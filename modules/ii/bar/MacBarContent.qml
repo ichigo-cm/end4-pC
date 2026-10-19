@@ -27,6 +27,7 @@ Item {
 
     implicitHeight: root.menuBarHeight
     width: parent ? parent.width : 0
+    height: parent ? parent.height : root.menuBarHeight
 
     Component.onCompleted: Vpn.refresh()
 
