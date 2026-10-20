@@ -267,6 +267,9 @@ Singleton {
                 property JsonObject widgets: JsonObject {
                     property bool blurWidgets: false
                     property real blurRadius: 32
+                    property JsonObject glass: JsonObject {
+                        property bool enable: true
+                    }
                     property bool shadow: true
                     property list<string> menuHidden: []
                     property JsonObject clock: JsonObject {
