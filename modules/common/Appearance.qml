@@ -50,11 +50,11 @@ Singleton {
         readonly property color outline: "#55565d"
         readonly property color outlineVariant: "#37383e"
         readonly property color accentContainer: "#3c1217"
-        readonly property color onAccentContainer: "#f8e7e8"
+        readonly property color accentContainerForeground: "#f8e7e8"
         readonly property color statusError: "#ff6b6b"
         readonly property color statusSuccess: "#77d6a2"
         readonly property color statusSuccessContainer: "#183127"
-        readonly property color onStatusSuccessContainer: "#d8f3e2"
+        readonly property color statusSuccessContainerForeground: "#d8f3e2"
         readonly property real hairlineWidth: 1
         readonly property int space2: 8
         readonly property int space3: 12

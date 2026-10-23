@@ -44,7 +44,7 @@ Singleton {
             m3primary: d.accent,
             m3onPrimary: "#ffffff",
             m3primaryContainer: d.accentContainer,
-            m3onPrimaryContainer: d.onAccentContainer,
+            m3onPrimaryContainer: d.accentContainerForeground,
             m3inversePrimary: "#f2555c",
             m3secondary: d.foregroundSecondary,
             m3onSecondary: d.canvas,
@@ -73,7 +73,7 @@ Singleton {
             m3success: d.statusSuccess,
             m3onSuccess: "#11251c",
             m3successContainer: d.statusSuccessContainer,
-            m3onSuccessContainer: d.onStatusSuccessContainer
+            m3onSuccessContainer: d.statusSuccessContainerForeground
         }
     }
 
