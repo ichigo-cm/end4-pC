@@ -56,39 +56,37 @@ Item {
     readonly property bool hasMedia: root.activePlayer !== null
         && ((root.activePlayer.trackTitle ?? "") !== "" || root.activePlayer.isPlaying)
     readonly property var latestNotification: Notifications.popupList.length > 0
+        && !Notifications.popupInhibited
         ? Notifications.popupList[Notifications.popupList.length - 1]
         : null
     readonly property bool isRecording: Persistent.states.record.enable
-    property int recordingElapsedSeconds: 0
-
-    onIsRecordingChanged: {
-        if (!isRecording) recordingElapsedSeconds = 0
-    }
-
-    function formatRecordingTime(s) {
-        return Math.floor(s / 60).toString().padStart(2, '0') + ":" + (s % 60).toString().padStart(2, '0')
-    }
-
-    Timer {
-        interval: 1000
-        repeat: true
-        running: root.isRecording
-        onTriggered: root.recordingElapsedSeconds++
-    }
-
     property string engagedTimerKind: ""
     readonly property bool hasActiveTimer: root.engagedTimerKind !== ""
 
-    Component.onCompleted: {
+    function selectRunningTimer() {
         if (TimerService.pomodoroRunning) root.engagedTimerKind = "pomodoro"
         else if (TimerService.countdownRunning) root.engagedTimerKind = "countdown"
         else if (TimerService.stopwatchRunning) root.engagedTimerKind = "stopwatch"
+        else root.engagedTimerKind = ""
     }
+
+    function reconcileTimerSelection() {
+        if (root.engagedTimerKind !== "countdown"
+                || TimerService.countdownRunning
+                || TimerService.countdownDuration > 0) return
+        root.selectRunningTimer()
+    }
+
+    Component.onCompleted: root.selectRunningTimer()
 
     Connections {
         target: TimerService
         function onPomodoroRunningChanged() { if (TimerService.pomodoroRunning) root.engagedTimerKind = "pomodoro" }
-        function onCountdownRunningChanged() { if (TimerService.countdownRunning) root.engagedTimerKind = "countdown" }
+        function onCountdownRunningChanged() {
+            if (TimerService.countdownRunning) root.engagedTimerKind = "countdown"
+            else Qt.callLater(() => root.reconcileTimerSelection())
+        }
+        function onCountdownDurationChanged() { Qt.callLater(() => root.reconcileTimerSelection()) }
         function onStopwatchRunningChanged() { if (TimerService.stopwatchRunning) root.engagedTimerKind = "stopwatch" }
     }
 
@@ -133,7 +131,7 @@ Item {
             case "countdown": TimerService.resetCountdown(); break
             case "stopwatch": TimerService.stopwatchReset(); break
         }
-        root.engagedTimerKind = ""
+        root.selectRunningTimer()
     }
 
     property bool batteryAlertActive: false
@@ -168,13 +166,13 @@ Item {
     Connections {
         target: Battery
         function onIsCriticalAndNotChargingChanged() {
-            if (Battery.isCriticalAndNotCharging) root.triggerBatteryAlert("critical")
+            if (Battery.available && Battery.isCriticalAndNotCharging) root.triggerBatteryAlert("critical")
         }
         function onIsLowAndNotChargingChanged() {
-            if (Battery.isLowAndNotCharging && !Battery.isCriticalAndNotCharging) root.triggerBatteryAlert("low")
+            if (Battery.available && Battery.isLowAndNotCharging && !Battery.isCriticalAndNotCharging) root.triggerBatteryAlert("low")
         }
         function onIsPluggedInChanged() {
-            if (Battery.isPluggedIn) root.triggerBatteryAlert("charging")
+            if (Battery.available && Battery.isPluggedIn) root.triggerBatteryAlert("charging")
         }
     }
 
@@ -203,13 +201,13 @@ Item {
     }
 
     readonly property var contentProviders: [
+        { id: "session",      active: GlobalStates.diSessionOpen,       component: sessionComponent,      width: root.sessionWidth },
         { id: "notification", active: root.latestNotification !== null, component: notificationComponent, width: root.notificationWidth },
         { id: "battery",      active: root.batteryAlertActive,          component: batteryComponent,      width: root.batteryWidth },
+        { id: "osd",          active: GlobalStates.osdVolumeOpen,       component: osdComponent,          width: root.osdWidth },
         { id: "recording",    active: root.isRecording,                 component: recordingComponent,    width: root.recordingWidth },
         { id: "timer",        active: root.hasActiveTimer,              component: timerComponent,        width: root.timerWidth },
-        { id: "osd",          active: GlobalStates.osdVolumeOpen,       component: osdComponent,          width: root.osdWidth },
         { id: "media",        active: root.hasMedia,                    component: mediaComponent,        width: root.mediaWidth },
-        { id: "session",      active: GlobalStates.diSessionOpen,       component: sessionComponent,      width: root.sessionWidth },
     ]
 
     readonly property var alwaysWinIds: ["session", "notification", "battery", "osd"]
@@ -245,7 +243,7 @@ Item {
                 switch (GlobalStates.osdIndicatorType) {
                     case "brightness": return Hyprsunset.temperatureActive ? "routine" : "light_mode"
                     case "gamma":      return "wb_twilight"
-                    default:           return "volume_up"
+                    default:           return Audio.sink?.audio?.muted ? "volume_off" : "volume_up"
                 }
             default: return "circle"
         }
@@ -296,7 +294,7 @@ Item {
 
         HoverHandler {
             id: mediaHoverHandler
-            enabled: root.activeContentId === "media"
+            enabled: !root.isMacStyle && root.hasMedia
         }
 
         WheelHandler {
@@ -392,6 +390,11 @@ Item {
                     Layout.alignment: Qt.AlignVCenter
                     implicitWidth: 16
                     implicitHeight: 16
+                    activeFocusOnTab: true
+                    Accessible.role: Accessible.Button
+                    Accessible.name: Translation.tr("Stop screen recording")
+                    Keys.onReturnPressed: Quickshell.execDetached([Directories.recordScriptPath])
+                    Keys.onSpacePressed: Quickshell.execDetached([Directories.recordScriptPath])
 
                     MaterialSymbol {
                         anchors.fill: parent
@@ -399,6 +402,14 @@ Item {
                         fill: 1
                         iconSize: root.isMaterial ? 26 : 16
                         color: Appearance.colors.colError
+                    }
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: height / 2
+                        color: "transparent"
+                        border.width: stopButton.activeFocus ? 1 : 0
+                        border.color: Appearance.colors.colError
                     }
 
                     MouseArea {
@@ -412,9 +423,8 @@ Item {
 
                 StyledText {
                     Layout.alignment: Qt.AlignVCenter
-                    text: root.formatRecordingTime(root.recordingElapsedSeconds)
+                    text: Translation.tr("Recording")
                     font.pixelSize: Appearance.font.pixelSize.small
-                    font.features: { "tnum": 1 }
                     color: root.islandContentColor
                 }
             }

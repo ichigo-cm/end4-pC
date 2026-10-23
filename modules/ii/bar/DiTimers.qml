@@ -19,6 +19,11 @@ RowLayout {
         Layout.alignment: Qt.AlignVCenter
         implicitWidth: 16
         implicitHeight: 16
+        activeFocusOnTab: true
+        Accessible.role: Accessible.Button
+        Accessible.name: root.timerRunning() ? Translation.tr("Pause timer") : Translation.tr("Resume timer")
+        Keys.onReturnPressed: root.toggleActiveTimer()
+        Keys.onSpacePressed: root.toggleActiveTimer()
 
         MaterialSymbol {
             anchors.fill: parent
@@ -26,6 +31,14 @@ RowLayout {
             fill: 1
             iconSize: root.isMaterial ? 24 : 16
             color: root.islandContentColor
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            radius: height / 2
+            color: "transparent"
+            border.width: timerPauseButton.activeFocus ? 1 : 0
+            border.color: root.islandContentColor
         }
 
         MouseArea {
@@ -40,6 +53,11 @@ RowLayout {
         Layout.alignment: Qt.AlignVCenter
         implicitWidth: 16
         implicitHeight: 16
+        activeFocusOnTab: true
+        Accessible.role: Accessible.Button
+        Accessible.name: Translation.tr("Reset timer")
+        Keys.onReturnPressed: root.resetActiveTimer()
+        Keys.onSpacePressed: root.resetActiveTimer()
 
         MaterialSymbol {
             anchors.fill: parent
@@ -47,6 +65,14 @@ RowLayout {
             fill: 1
             iconSize: root.isMaterial ? 24 : 16
             color: root.islandContentColor
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            radius: height / 2
+            color: "transparent"
+            border.width: timerStopButton.activeFocus ? 1 : 0
+            border.color: root.islandContentColor
         }
 
         MouseArea {

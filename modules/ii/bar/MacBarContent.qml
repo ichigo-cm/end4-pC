@@ -25,6 +25,14 @@ Item {
         return lastPart.replace(/[-_]/g, " ");
     }
 
+    function openBarSettings() {
+        GlobalStates.openSettingsAt(
+            "bar",
+            Translation.tr("Bar"),
+            Translation.tr("Positioning & Styles")
+        );
+    }
+
     implicitHeight: root.menuBarHeight
     width: parent ? parent.width : 0
     height: parent ? parent.height : root.menuBarHeight
@@ -101,8 +109,8 @@ Item {
                 visible: leftRegion.width > 300
                 activeFocusOnTab: visible
                 Accessible.role: Accessible.Button
-                Keys.onReturnPressed: GlobalStates.openSettingsAt("interface", Translation.tr("Interface"), Translation.tr("Desktop appearance"))
-                Keys.onSpacePressed: GlobalStates.openSettingsAt("interface", Translation.tr("Interface"), Translation.tr("Desktop appearance"))
+                Keys.onReturnPressed: root.openBarSettings()
+                Keys.onSpacePressed: root.openBarSettings()
 
                 Rectangle {
                     anchors.fill: parent
@@ -124,7 +132,7 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: GlobalStates.openSettingsAt("interface", Translation.tr("Interface"), Translation.tr("Desktop appearance"))
+                    onClicked: root.openBarSettings()
                 }
                 Accessible.name: Translation.tr("Open appearance settings")
             }
@@ -163,6 +171,7 @@ Item {
             SystemIcons {
                 Layout.alignment: Qt.AlignVCenter
                 vertical: false
+                isMaterial: false
                 iconSize: 17
                 contentColor: root.foreground
                 contentColorOverridden: true

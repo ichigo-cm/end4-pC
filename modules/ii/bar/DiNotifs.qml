@@ -11,6 +11,13 @@ Item {
     anchors.fill: parent
 
     readonly property var notif: root.latestNotification
+    readonly property bool hideNotificationContent: Privacy.screenSharing || Privacy.micActive || root.isRecording
+    readonly property string displayAppName: String(notif?.appName ?? "").replace(/\n/g, " ").trim()
+    readonly property string displayTitle: {
+        if (diNotifsRoot.hideNotificationContent) return Translation.tr("New notification")
+        const summary = String(notif?.summary ?? "").replace(/\n/g, " ").trim()
+        return summary || diNotifsRoot.displayAppName || Translation.tr("Notification")
+    }
 
     Image {
         id: notifIcon
@@ -21,8 +28,10 @@ Item {
             leftMargin: root.isMacStyle ? 8 : root.isMaterial ? 4 : 12
             verticalCenter: parent.verticalCenter
         }
-        source: SystemAppearance.iconPath(notif?.appIcon ?? "", "notification-symbolic")
-        visible: (notif?.appIcon ?? "") !== ""
+        source: diNotifsRoot.hideNotificationContent
+            ? ""
+            : SystemAppearance.iconPath(notif?.appIcon ?? "", "notification-symbolic")
+        visible: !diNotifsRoot.hideNotificationContent && (notif?.appIcon ?? "") !== ""
         fillMode: Image.PreserveAspectFit
         asynchronous: true
     }
@@ -37,7 +46,7 @@ Item {
         text: "notifications"
         iconSize: 17
         color: root.islandContentColor
-        visible: root.isMacStyle && (notif?.appIcon ?? "") === ""
+        visible: root.isMacStyle && (diNotifsRoot.hideNotificationContent || (notif?.appIcon ?? "") === "")
     }
 
     MaterialShapeWrappedMaterialSymbol {
@@ -54,7 +63,7 @@ Item {
         iconSize: root.isMaterial ? 20 : 14
         fill: 1
         padding: 4
-        visible: !root.isMacStyle && (notif?.appIcon ?? "") === ""
+        visible: !root.isMacStyle && (diNotifsRoot.hideNotificationContent || (notif?.appIcon ?? "") === "")
     }
 
     ColumnLayout {
@@ -70,7 +79,7 @@ Item {
 
         StyledText {
             Layout.fillWidth: true
-            text: (notif?.summary ?? "").replace(/\n/g, " ")
+            text: diNotifsRoot.displayTitle
             font.pixelSize: Appearance.font.pixelSize.smaller
             font.weight: Font.DemiBold
             color: root.islandContentColor
@@ -80,7 +89,8 @@ Item {
         }
         StyledText {
             Layout.fillWidth: true
-            text: (notif?.body ?? "").replace(/\n/g, " ")
+            visible: !diNotifsRoot.hideNotificationContent && diNotifsRoot.displayAppName !== ""
+            text: diNotifsRoot.displayAppName
             font.pixelSize: Appearance.font.pixelSize.smallest
             color: root.islandContentColor
             opacity: 0.7
@@ -105,9 +115,24 @@ Item {
         opacity: 0.8
     }
 
+    Rectangle {
+        anchors.fill: parent
+        radius: height / 2
+        color: "transparent"
+        border.width: notificationClickArea.activeFocus ? 1 : 0
+        border.color: root.islandContentColor
+        visible: notificationClickArea.activeFocus
+    }
+
     MouseArea {
+        id: notificationClickArea
         anchors.fill: parent
         enabled: root.isMacStyle
+        activeFocusOnTab: enabled
+        Accessible.role: Accessible.Button
+        Accessible.name: Translation.tr("Open notifications")
+        Keys.onReturnPressed: GlobalStates.sidebarRightOpen = true
+        Keys.onSpacePressed: GlobalStates.sidebarRightOpen = true
         cursorShape: Qt.PointingHandCursor
         onClicked: GlobalStates.sidebarRightOpen = true
     }

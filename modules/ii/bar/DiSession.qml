@@ -44,6 +44,18 @@ Item {
                 required property int index
                 implicitWidth: 34
                 implicitHeight: 34
+                activeFocusOnTab: true
+                Accessible.role: Accessible.Button
+                Accessible.name: actionDelegate.modelData.label
+                Keys.onReturnPressed: {
+                    diSessionRoot.focusedIndex = actionDelegate.index
+                    diSessionRoot.confirmCurrent()
+                }
+                Keys.onSpacePressed: {
+                    diSessionRoot.focusedIndex = actionDelegate.index
+                    diSessionRoot.confirmCurrent()
+                }
+                onActiveFocusChanged: if (activeFocus) diSessionRoot.focusedIndex = actionDelegate.index
 
                 readonly property bool isFocused: diSessionRoot.focusedIndex === actionDelegate.index
 

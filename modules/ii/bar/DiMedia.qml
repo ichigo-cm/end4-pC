@@ -125,7 +125,10 @@ Item {
 
             Rectangle {
                 id: trackProgress
-                visible: root.isMacStyle && (root.activePlayer?.length ?? 0) > 0
+                visible: root.isMacStyle
+                    && (root.activePlayer?.positionSupported ?? false)
+                    && (root.activePlayer?.lengthSupported ?? false)
+                    && (root.activePlayer?.length ?? 0) > 0
                 Layout.fillWidth: true
                 Layout.preferredHeight: 2
                 Layout.maximumHeight: 2
@@ -215,8 +218,8 @@ Item {
                 activeFocusOnTab: root.isMacStyle && visible
                 Accessible.role: Accessible.Button
                 Accessible.name: Translation.tr("Previous track")
-                Keys.onReturnPressed: root.activePlayer?.previous()
-                Keys.onSpacePressed: root.activePlayer?.previous()
+                Keys.onReturnPressed: MprisController.previous()
+                Keys.onSpacePressed: MprisController.previous()
 
                 Rectangle {
                     anchors.fill: parent
@@ -237,7 +240,7 @@ Item {
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: root.activePlayer?.previous()
+                    onClicked: MprisController.previous()
                 }
             }
 
@@ -251,10 +254,10 @@ Item {
                 Accessible.name: root.activePlayer?.isPlaying
                     ? Translation.tr("Pause") : Translation.tr("Play")
                 Keys.onReturnPressed: {
-                    if (root.activePlayer?.canTogglePlaying) root.activePlayer.togglePlaying()
+                    if (MprisController.canTogglePlaying) MprisController.togglePlaying()
                 }
                 Keys.onSpacePressed: {
-                    if (root.activePlayer?.canTogglePlaying) root.activePlayer.togglePlaying()
+                    if (MprisController.canTogglePlaying) MprisController.togglePlaying()
                 }
 
                 Rectangle {
@@ -277,7 +280,7 @@ Item {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        if (root.activePlayer?.canTogglePlaying) root.activePlayer.togglePlaying()
+                        if (MprisController.canTogglePlaying) MprisController.togglePlaying()
                     }
                 }
             }
@@ -290,8 +293,8 @@ Item {
                 activeFocusOnTab: root.isMacStyle && visible
                 Accessible.role: Accessible.Button
                 Accessible.name: Translation.tr("Next track")
-                Keys.onReturnPressed: root.activePlayer?.next()
-                Keys.onSpacePressed: root.activePlayer?.next()
+                Keys.onReturnPressed: MprisController.next()
+                Keys.onSpacePressed: MprisController.next()
 
                 Rectangle {
                     anchors.fill: parent
@@ -312,7 +315,7 @@ Item {
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: root.activePlayer?.next()
+                    onClicked: MprisController.next()
                 }
             }
         }
