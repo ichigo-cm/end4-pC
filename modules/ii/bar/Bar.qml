@@ -87,6 +87,10 @@ Scope {
                 exclusiveZone: (barContent.centerOnly && Config.options.bar.centerOnlyReserveFrame)
                     ? Config.options.bar.frameThickness
                     : (!isMacStyle && (Config.options.bar.cornerStyle === 4 || Config.options.bar.cornerStyle === 5 || Config.options.bar.cornerStyle === 6)) ? normalExclusiveZone + 4 : normalExclusiveZone
+                // Keep the interactive Mac bar focusable through normal compositor focus, never exclusively.
+                WlrLayershell.keyboardFocus: isMacStyle
+                    ? WlrKeyboardFocus.OnDemand
+                    : WlrKeyboardFocus.None
                 WlrLayershell.namespace: "quickshell:bar"
                 // Overlay layer only while special workspace sits on top of a fullscreen window on this monitor,
                 // else Top layer so fullscreen apps cover the bar as normal (Hyprland buries Top layer under fullscreen+special).

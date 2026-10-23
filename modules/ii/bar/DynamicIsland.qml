@@ -315,13 +315,19 @@ Item {
             activeFocusOnTab: visible
             acceptedButtons: Qt.LeftButton
             cursorShape: visible ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onPressed: forceActiveFocus()
             Accessible.role: Accessible.Button
             Accessible.name: root.mediaExpanded
                 ? Translation.tr("Collapse media details")
                 : Translation.tr("Expand media details")
             onClicked: root.toggleMediaDetails()
-            Keys.onReturnPressed: root.toggleMediaDetails()
-            Keys.onSpacePressed: root.toggleMediaDetails()
+            Keys.onPressed: (event) => {
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                    event.accepted = true
+                    if (!event.isAutoRepeat)
+                        root.toggleMediaDetails()
+                }
+            }
         }
 
         Rectangle {
@@ -555,8 +561,13 @@ Item {
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
                 Accessible.name: root.providerAccessibleName(badgeItem.modelData.id)
-                Keys.onReturnPressed: root.manualFocusId = badgeItem.modelData.id
-                Keys.onSpacePressed: root.manualFocusId = badgeItem.modelData.id
+                Keys.onPressed: (event) => {
+                    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                        event.accepted = true
+                        if (!event.isAutoRepeat)
+                            root.manualFocusId = badgeItem.modelData.id
+                    }
+                }
 
                 MaterialShapeWrappedMaterialSymbol {
                     anchors.fill: parent
@@ -582,6 +593,7 @@ Item {
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
+                    onPressed: badgeItem.forceActiveFocus()
                     onClicked: root.manualFocusId = badgeItem.modelData.id
                 }
             }
