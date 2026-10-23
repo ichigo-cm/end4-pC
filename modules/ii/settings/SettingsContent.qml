@@ -56,7 +56,6 @@ Item {
 
     Connections {
         target: GlobalStates
-        target: GlobalStates
         function onSettingsOpenChanged() {
             if (!GlobalStates.settingsOpen) {
                 searchField.text = ""
