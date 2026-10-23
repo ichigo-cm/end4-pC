@@ -193,9 +193,11 @@ Item {
                     }
                 }
             }
+        }
 
             Rectangle {
                 id: searchResultsPopup
+                parent: root
                 visible: root.searchQuery.trim().length > 0
                 z: 30
                 x: searchFieldWrap.mapToItem(root, 0, 0).x
