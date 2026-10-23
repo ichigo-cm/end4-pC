@@ -56,6 +56,7 @@ Singleton {
         readonly property color statusSuccessContainer: "#183127"
         readonly property color statusSuccessContainerForeground: "#d8f3e2"
         readonly property real hairlineWidth: 1
+        readonly property color glassSpecular: ColorUtils.applyAlpha("#ffffff", 0.10)
         readonly property int space2: 8
         readonly property int space3: 12
         readonly property int space4: 16

@@ -284,6 +284,21 @@ Item {
         clip: true
         visible: !root.vertical
 
+        Rectangle {
+            anchors {
+                top: parent.top
+                left: parent.left
+                right: parent.right
+                topMargin: 1
+                leftMargin: 14
+                rightMargin: 14
+            }
+            height: 1
+            radius: 1
+            color: Appearance.design.glassSpecular
+            visible: root.isMacStyle
+        }
+
         Behavior on width {
             NumberAnimation {
                 duration: root.isMacStyle
