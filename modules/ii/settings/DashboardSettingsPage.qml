@@ -99,11 +99,11 @@ Item {
         { id: "hero:style", type: "style", title: Translation.tr("Settings panel style"), section: Translation.tr("Interface"), kw: "settings panel style default minimal dashboard window overlay" },
         { id: "hero:blur", type: "toggle", key: "desktop:Blur wall", title: Translation.tr("Blur wallpaper"), icon: "blur_on", section: Translation.tr("Desktop"), kw: "blur wallpaper background" },
         { id: "hero:transparency", type: "toggle", key: "interface:Transparency/Enable", title: Translation.tr("Transparency"), icon: "opacity", section: Translation.tr("Interface"), kw: "transparency opacity" },
+        { id: "hero:glass", type: "toggle", key: "interface:Glassy UI", title: Translation.tr("Glassy UI"), icon: "water_drop", section: Translation.tr("Interface"), kw: "glassy ui liquid glass frosted blur translucent ui panels bar sidebars dock widgets" },
         { id: "hero:collage", type: "toggle", key: "desktop:Collage enable", title: Translation.tr("Multiple wallpapers"), icon: "grid_view", section: Translation.tr("Desktop"), kw: "multiple wallpapers collage tiles" },
         { id: "hero:centered", type: "toggle", key: "desktop:Wallpaper/Centered wallpaper/Enable", title: Translation.tr("Centered wallpaper"), icon: "filter_center_focus", section: Translation.tr("Desktop"), kw: "centered wallpaper" },
         { id: "hero:schemes", type: "schemes", title: Translation.tr("Color scheme"), section: Translation.tr("Interface"), kw: "color scheme theme palette accent catppuccin gruvbox nord dracula tokyo everforest one dark" },
         { id: "hero:uibg", type: "select", w: 2, key: "interface:UI background", title: Translation.tr("UI background"), icon: "format_color_fill", section: Translation.tr("Interface"), kw: "ui background oled black amoled themed dark surface layer panels sidebars" },
-        { id: "hero:glass", type: "toggle", w: 2, key: "interface:Glassy UI", title: Translation.tr("Glassy UI"), icon: "water_drop", section: Translation.tr("Interface"), kw: "glassy ui liquid glass frosted blur translucent ui panels bar sidebars dock widgets" },
         { id: "hero:palette", type: "palette", when: "material", key: "interface:Palette type", title: Translation.tr("Palette style"), icon: "auto_awesome", section: Translation.tr("Interface"), kw: "palette style scheme auto content expressive fidelity fruit salad monochrome neutral rainbow tonal spot material you dynamic" },
         { id: "hero:barpos", type: "barpos", title: Translation.tr("Bar position"), section: Translation.tr("Bar"), kw: "bar position top bottom left right vertical panel" },
         { id: "hero:tooltips", type: "toggle", w: 2, searchable: true, key: "bar:Tooltips/Enable", title: Translation.tr("Tooltips"), icon: "tooltip", section: Translation.tr("Bar"), kw: "bar tooltips enable hover" },
@@ -549,8 +549,13 @@ Item {
             flickDeceleration: 4000
             maximumFlickVelocity: 2500
 
+            TouchpadScrollArea {
+                id: touchpadScroll
+                flickable: flick
+            }
+
             Behavior on contentY {
-                enabled: !flick.moving && !flick.dragging
+                enabled: !touchpadScroll.scrolling && !flick.moving && !flick.dragging
                 NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
             }
 

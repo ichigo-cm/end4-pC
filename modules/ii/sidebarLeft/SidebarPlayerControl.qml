@@ -103,6 +103,12 @@ Item {
         color: ColorUtils.transparentize(artDominantColor, 0.9)
         radius: Appearance.rounding.normal
         clip: true
+        WindowGlass {
+            anchors.fill: parent
+            cardRadius: parent.radius
+            tint: root.artDominantColor
+            tintStrength: 0.4
+        }
 
         AnimatedImage {
             id: blurArtSource

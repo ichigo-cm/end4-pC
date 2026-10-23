@@ -30,12 +30,12 @@ Item {
 
                 WindowGlass {
                     anchors.fill: parent
-                    glassEnabled: root.glass
+                    glassEnabled: root?.glass ?? false
                     topLeftRadius: parent.topLeftRadius
                     topRightRadius: parent.topRightRadius
                     bottomLeftRadius: parent.bottomLeftRadius
                     bottomRightRadius: parent.bottomRightRadius
-                    tint: root.bgcolor
+                    tint: root?.bgcolor ?? "transparent"
                 }
                 topLeftRadius:     isFirst ? root.bigRadius : root.smallRadius
                 topRightRadius:    isFirst ? root.bigRadius : root.smallRadius

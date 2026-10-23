@@ -348,7 +348,7 @@ PopupWindow {
                         tintStrength: 0.6
                     }
 
-                    GridView {
+                    StyledGridView {
                         id: grid
                         visible: root.hasFolder && avatarModel.count > 0
                         anchors {

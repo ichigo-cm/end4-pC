@@ -156,6 +156,9 @@ Item {
                 contentHeight: textBody.implicitHeight
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
+
+                TouchpadScrollArea { flickable: textFlick }
+
                 ScrollBar.vertical: StyledScrollBar {}
 
                 StyledText {

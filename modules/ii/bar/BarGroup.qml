@@ -27,8 +27,8 @@ Item {
     property var stylePreview: ({})
     readonly property var style: {
         if (root.isMaterial) return ({});
-        const entry = (Config.options.bar.widgetStyles ?? []).find(e => e.mode === root.borderlessMode && e.widget === root.widgetName);
-        return Object.assign({}, entry ?? {}, root.stylePreview);
+        const entry = (Config.options?.bar?.widgetStyles ?? []).find(e => e.mode === root.borderlessMode && e.widget === root.widgetName);
+        return Object?.assign?.({}, entry ?? {}, root.stylePreview) ?? ({});
     }
 
     function previewStyle(key, value) {
@@ -44,9 +44,9 @@ Item {
     readonly property bool rightClickFree: !["updatesCount", "weatherBar", "bluetooth", "workspaces", "sysTray", "media", "docktoPanel"].includes(root.widgetName)
 
     readonly property Item loadedWidget: gridLayout.children[0]?.item ?? null
-    readonly property bool hasContentOverride: !root.isMaterial && root.style.color !== undefined && root.style.color !== "transparent"
+    readonly property bool hasContentOverride: !root.isMaterial && root.style?.color !== undefined && root.style?.color !== "transparent"
     readonly property color contentColor: {
-        const name = root.style.color ?? "";
+        const name = root.style?.color ?? "";
         const special = { surfaceContainer: "onSurface", onError: "error", onLayer0: "layer0" };
         const onName = special[name] ?? `on${name.charAt(0).toUpperCase()}${name.slice(1)}`;
         return root.resolveColorName(onName) ?? Appearance.colors.colOnLayer1;
@@ -112,7 +112,7 @@ Item {
     readonly property real currentRadius: background.topLeftRadius
     readonly property real currentBorderWidth: background.border.width
 
-    property real padding: root.style.padding ?? ((root.isMaterial && !root.paintMaterialPill) ? 0 : 5)
+    property real padding: root.style?.padding ?? ((root.isMaterial && !root.paintMaterialPill) ? 0 : 5)
 
     readonly property bool isSegmented: Config.options?.bar.borderless === "segmented"
     readonly property bool isPanel: Config.options.bar.cornerStyle === 5
@@ -164,8 +164,8 @@ Item {
             ? Appearance.colors.colUiPopupBackground
             : !root.paintBackground
             ? "transparent"
-            : root.resolveColorName(root.style.color) !== undefined
-                ? root.resolveColorName(root.style.color)
+            : root.resolveColorName(root.style?.color) !== undefined
+                ? root.resolveColorName(root.style?.color)
             : (root.isMaterial && !root.paintMaterialPill)
                 ? "transparent"
                 : (root.isMaterial && root.paintMaterialPill)
@@ -178,13 +178,13 @@ Item {
 
         color: Config.options.background.widgets.glass.enable && fill.a > 0 ? "transparent" : fill
 
-        border.width: root.morphEdge !== "" ? 0 : root.style.borderWidth ?? (root.paintBackground && root.isSegmented && !root.isMaterial ? 1 : 0)
-        border.color: root.resolveColorName(root.style.borderColor) ?? Appearance.colors.colLayer0Border
+        border.width: root.morphEdge !== "" ? 0 : root.style?.borderWidth ?? (root.paintBackground && root.isSegmented && !root.isMaterial ? 1 : 0)
+        border.color: root.resolveColorName(root.style?.borderColor) ?? Appearance.colors.colLayer0Border
 
-        topLeftRadius: root.flatTL ? 0 : root.style.radius ?? ((root.isMaterial && root.paintMaterialPill) ? root.fullRadius : (Config.options?.bar.borderless === "separated" ? root.fullRadius : root.startRadius))
-        bottomLeftRadius: root.flatBL ? 0 : root.style.radius ?? ((root.isMaterial && root.paintMaterialPill) ? root.fullRadius : (Config.options?.bar.borderless === "separated" ? root.fullRadius : root.vertical ? root.endRadius : root.startRadius))
-        topRightRadius: root.flatTR ? 0 : root.style.radius ?? ((root.isMaterial && root.paintMaterialPill) ? root.fullRadius : (Config.options?.bar.borderless === "separated" ? root.fullRadius : root.vertical ? root.startRadius : root.endRadius))
-        bottomRightRadius: root.flatBR ? 0 : root.style.radius ?? ((root.isMaterial && root.paintMaterialPill) ? root.fullRadius : (Config.options?.bar.borderless === "separated" ? root.fullRadius : root.endRadius))
+        topLeftRadius: root.flatTL ? 0 : root.style?.radius ?? ((root.isMaterial && root.paintMaterialPill) ? root.fullRadius : (Config.options?.bar.borderless === "separated" ? root.fullRadius : root.startRadius))
+        bottomLeftRadius: root.flatBL ? 0 : root.style?.radius ?? ((root.isMaterial && root.paintMaterialPill) ? root.fullRadius : (Config.options?.bar.borderless === "separated" ? root.fullRadius : root.vertical ? root.endRadius : root.startRadius))
+        topRightRadius: root.flatTR ? 0 : root.style?.radius ?? ((root.isMaterial && root.paintMaterialPill) ? root.fullRadius : (Config.options?.bar.borderless === "separated" ? root.fullRadius : root.vertical ? root.startRadius : root.endRadius))
+        bottomRightRadius: root.flatBR ? 0 : root.style?.radius ?? ((root.isMaterial && root.paintMaterialPill) ? root.fullRadius : (Config.options?.bar.borderless === "separated" ? root.fullRadius : root.endRadius))
 
         Behavior on color {
             enabled: root.morphEdge === ""

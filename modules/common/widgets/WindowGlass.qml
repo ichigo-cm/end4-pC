@@ -2,6 +2,7 @@ import QtQuick
 import QtQml
 import Quickshell
 import Quickshell.Io
+import qs
 import qs.services
 import qs.modules.common
 
@@ -14,12 +15,21 @@ Item {
     property real bottomLeftRadius: cardRadius
     property color tint: "transparent"
     property bool glassEnabled: true
+    property bool fullscreenSurface: false
     property real tintStrength: 0.3
+    readonly property bool live: glassEnabled && (Config.options?.background?.widgets?.glass?.enable ?? false)
+    readonly property bool tracking: live && (win?.visible ?? true)
 
     readonly property var win: QsWindow.window
-    readonly property var scr: win?.screen ?? null
-    readonly property bool floating: !!win && win.anchors === undefined && win.anchor === undefined
-    readonly property bool popup: !!win && win.anchor !== undefined
+    readonly property var surfaceScreen: ({
+        name: "",
+        width: root.Window.width,
+        height: root.Window.height,
+        devicePixelRatio: root.Window.window?.devicePixelRatio ?? 1
+    })
+    readonly property var scr: win?.screen ?? (fullscreenSurface && root.Window.window ? surfaceScreen : null)
+    readonly property bool floating: !fullscreenSurface && !!win && win.anchors === undefined && win.anchor === undefined
+    readonly property bool popup: !fullscreenSurface && !!win && win.anchor !== undefined
 
     property real floatX: 0
     property real floatY: 0
@@ -77,7 +87,8 @@ Item {
     }
 
     readonly property point winPos: {
-        if (!win || !scr) return Qt.point(0, 0)
+        if (!live || !win || !scr) return Qt.point(0, 0)
+        if (fullscreenSurface) return Qt.point(0, 0)
         if (floating) return Qt.point(floatX, floatY)
         if (popup) return popupOffset(win, scr)
         return panelOffset(win, scr)
@@ -87,7 +98,7 @@ Item {
 
     Process {
         id: tracker
-        running: root.floating && !!root.win?.visible && root.glassEnabled && Config.options.background.widgets.glass.enable
+        running: root.live && root.floating && !!root.win?.visible
         command: ["bash", "-c", "while :; do hyprctl -j activewindow | tr -d '\\n'; echo; sleep 0.016; done"]
         stdout: SplitParser {
             onRead: line => {
@@ -110,47 +121,33 @@ Item {
     }
 
     function kick() {
+        if (!tracking) return
         refresh()
-        if (win && !floating) GlassLayers.refresh()
+        if (win && !floating && !fullscreenSurface) GlassLayers.refresh()
         settleTimer.restart()
         ticker.running = true
     }
 
-    property var ancestors: []
-
-    function rebuild() {
-        const list = []
-        for (let it = parent; it; it = it.parent) list.push(it)
-        ancestors = list
-        kick()
+    readonly property var ancestorGeometry: {
+        if (!tracking) return []
+        const sig = []
+        for (let it = parent; it; it = it.parent) sig.push(it.x, it.y, it.width, it.height, it.scale)
+        return sig
     }
 
-    onParentChanged: rebuild()
+    onAncestorGeometryChanged: kick()
+    onTrackingChanged: kick()
+    onParentChanged: kick()
     onXChanged: kick()
     onYChanged: kick()
     onWidthChanged: kick()
     onHeightChanged: kick()
     onVisibleChanged: kick()
-    onGlassEnabledChanged: kick()
-    Component.onCompleted: rebuild()
-
-    Instantiator {
-        model: root.ancestors
-        delegate: Connections {
-            required property var modelData
-            target: modelData
-            ignoreUnknownSignals: true
-            function onXChanged() { root.kick() }
-            function onYChanged() { root.kick() }
-            function onWidthChanged() { root.kick() }
-            function onHeightChanged() { root.kick() }
-            function onScaleChanged() { root.kick() }
-            function onParentChanged() { root.rebuild() }
-        }
-    }
+    Component.onCompleted: kick()
 
     Connections {
         target: root.win
+        enabled: root.live
         function onWidthChanged() { root.kick() }
         function onHeightChanged() { root.kick() }
         function onVisibleChanged() { root.kick() }
@@ -170,13 +167,14 @@ Item {
     }
 
     readonly property string wallpaper: {
-        const path = Config.options.background.wallpaperPath
+        const lockWall = Config.options.background.lockWall ?? ""
+        const path = GlobalStates.screenLocked && lockWall !== "" ? lockWall : Config.options.background.wallpaperPath
         return /\.(mp4|webm|mkv|avi|mov)$/.test(path) ? Config.options.background.thumbnailPath : path
     }
 
     Loader {
         anchors.fill: parent
-        active: root.glassEnabled && Config.options.background.widgets.glass.enable && !!root.scr && root.wallpaper !== ""
+        active: root.live && !!root.scr && root.wallpaper !== ""
 
         sourceComponent: Item {
             Image {

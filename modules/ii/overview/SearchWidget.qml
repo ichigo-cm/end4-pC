@@ -265,6 +265,8 @@ Item { // Wrapper
                 }
                 onContentYChanged: root.updatePreviewAnchor()
 
+                TouchpadScrollArea { flickable: appResults }
+
                 Connections {
                     target: root
                     function onSearchingTextChanged() {
