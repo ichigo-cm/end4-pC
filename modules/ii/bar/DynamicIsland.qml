@@ -27,7 +27,9 @@ Item {
     readonly property real mediaCollapsedWidth: isMacStyle ? 190 : 140
     readonly property real mediaExpandedWidthCap: isMacStyle ? 320 : 220
     property real mediaTextContentWidth: 0
-    property bool mediaTrackInfoVisible: isMacStyle || mediaHoverHandler.hovered || mediaTrackChangeTimer.running
+    property bool mediaExpanded: true
+    readonly property bool mediaTrackInfoVisible: root.isMacStyle ? root.mediaExpanded
+        : mediaHoverHandler.hovered || mediaTrackChangeTimer.running
     readonly property real mediaExpandedWidth: Math.min(root.mediaExpandedWidthCap, root.mediaTextContentWidth)
     readonly property real mediaWidth: root.mediaTrackInfoVisible ? root.mediaExpandedWidth : root.mediaCollapsedWidth
     readonly property real timerWidth: isMacStyle ? 180 : 130
@@ -43,6 +45,11 @@ Item {
     property string manualFocusId: ""
 
     property bool forceIdle: false
+
+    function toggleMediaDetails() {
+        if (!root.isMacStyle || root.activeContentId !== "media") return
+        root.mediaExpanded = !root.mediaExpanded
+    }
 
     readonly property var displayedProvider: root.forceIdle ? null : root.activeProvider
 
@@ -153,8 +160,14 @@ Item {
 
     Connections {
         target: root.activePlayer
-        function onTrackTitleChanged() { mediaTrackChangeTimer.restart() }
-        function onTrackArtistChanged() { mediaTrackChangeTimer.restart() }
+        function onTrackTitleChanged() {
+            mediaTrackChangeTimer.restart()
+            if (root.isMacStyle) root.mediaExpanded = true
+        }
+        function onTrackArtistChanged() {
+            mediaTrackChangeTimer.restart()
+            if (root.isMacStyle) root.mediaExpanded = true
+        }
     }
 
     function triggerBatteryAlert(kind) {
@@ -249,6 +262,15 @@ Item {
         }
     }
 
+    function providerAccessibleName(id) {
+        switch (id) {
+            case "media":     return Translation.tr("Show media activity")
+            case "recording": return Translation.tr("Show screen recording")
+            case "timer":     return Translation.tr("Show timer")
+            default:           return Translation.tr("Show activity")
+        }
+    }
+
     readonly property string activeContentId: root.displayedProvider?.id ?? "idle"
     readonly property real badgeExtent: !root.vertical && root.badgeProviders.length > 0
         ? root.badgeProviders.length * (root.badgeSpacing + root.badgeSize)
@@ -283,6 +305,24 @@ Item {
         border.color: root.isMacStyle ? Appearance.colors.colOutlineVariant : "transparent"
         clip: true
         visible: !root.vertical
+
+        MouseArea {
+            id: mediaExpandArea
+            anchors.fill: parent
+            visible: root.isMacStyle && root.activeContentId === "media"
+            enabled: visible
+            hoverEnabled: visible
+            activeFocusOnTab: visible
+            acceptedButtons: Qt.LeftButton
+            cursorShape: visible ? Qt.PointingHandCursor : Qt.ArrowCursor
+            Accessible.role: Accessible.Button
+            Accessible.name: root.mediaExpanded
+                ? Translation.tr("Collapse media details")
+                : Translation.tr("Expand media details")
+            onClicked: root.toggleMediaDetails()
+            Keys.onReturnPressed: root.toggleMediaDetails()
+            Keys.onSpacePressed: root.toggleMediaDetails()
+        }
 
         Rectangle {
             anchors {
@@ -355,6 +395,15 @@ Item {
                     easing.type: Easing.OutCubic
                 }
             }
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            radius: parent.radius
+            color: "transparent"
+            border.width: mediaExpandArea.activeFocus ? Appearance.design.hairlineWidth : 0
+            border.color: Appearance.design.accent
+            visible: mediaExpandArea.activeFocus
         }
 
         Component {
@@ -503,6 +552,11 @@ Item {
                 required property var modelData
                 width: root.badgeSize
                 height: root.badgeSize
+                activeFocusOnTab: true
+                Accessible.role: Accessible.Button
+                Accessible.name: root.providerAccessibleName(badgeItem.modelData.id)
+                Keys.onReturnPressed: root.manualFocusId = badgeItem.modelData.id
+                Keys.onSpacePressed: root.manualFocusId = badgeItem.modelData.id
 
                 MaterialShapeWrappedMaterialSymbol {
                     anchors.fill: parent
@@ -515,6 +569,14 @@ Item {
                     iconSize: 16
                     fill: 1
                     padding: 4
+                }
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: width / 2
+                    color: "transparent"
+                    border.width: badgeItem.activeFocus ? Appearance.design.hairlineWidth : 0
+                    border.color: Appearance.design.accent
                 }
 
                 MouseArea {
