@@ -301,8 +301,10 @@ Item {
             ? Appearance.getColorFromName(Config.options.bar.frameColor)
             : Appearance.colors.colUiBackground
         radius: height / 2
-        border.width: root.isMacStyle ? Appearance.design.hairlineWidth : 0
-        border.color: root.isMacStyle ? Appearance.colors.colOutlineVariant : "transparent"
+        border.width: root.isMacStyle ? (mediaExpandArea.activeFocus ? 2 : Appearance.design.hairlineWidth) : 0
+        border.color: root.isMacStyle
+            ? (mediaExpandArea.activeFocus ? Appearance.design.accent : Appearance.colors.colOutlineVariant)
+            : "transparent"
         clip: true
         visible: !root.vertical
 

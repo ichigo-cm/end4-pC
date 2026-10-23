@@ -218,8 +218,13 @@ Item {
                 activeFocusOnTab: root.isMacStyle && visible
                 Accessible.role: Accessible.Button
                 Accessible.name: Translation.tr("Previous track")
-                Keys.onReturnPressed: MprisController.previous()
-                Keys.onSpacePressed: MprisController.previous()
+                Keys.onPressed: (event) => {
+                    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                        event.accepted = true
+                        if (!event.isAutoRepeat)
+                            MprisController.previous()
+                    }
+                }
 
                 Rectangle {
                     anchors.fill: parent
@@ -240,6 +245,7 @@ Item {
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
+                    onPressed: parent.forceActiveFocus()
                     onClicked: MprisController.previous()
                 }
             }
@@ -253,11 +259,12 @@ Item {
                 Accessible.role: Accessible.Button
                 Accessible.name: root.activePlayer?.isPlaying
                     ? Translation.tr("Pause") : Translation.tr("Play")
-                Keys.onReturnPressed: {
-                    if (MprisController.canTogglePlaying) MprisController.togglePlaying()
-                }
-                Keys.onSpacePressed: {
-                    if (MprisController.canTogglePlaying) MprisController.togglePlaying()
+                Keys.onPressed: (event) => {
+                    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                        event.accepted = true
+                        if (!event.isAutoRepeat && MprisController.canTogglePlaying)
+                            MprisController.togglePlaying()
+                    }
                 }
 
                 Rectangle {
@@ -279,6 +286,7 @@ Item {
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
+                    onPressed: parent.forceActiveFocus()
                     onClicked: {
                         if (MprisController.canTogglePlaying) MprisController.togglePlaying()
                     }
@@ -293,8 +301,13 @@ Item {
                 activeFocusOnTab: root.isMacStyle && visible
                 Accessible.role: Accessible.Button
                 Accessible.name: Translation.tr("Next track")
-                Keys.onReturnPressed: MprisController.next()
-                Keys.onSpacePressed: MprisController.next()
+                Keys.onPressed: (event) => {
+                    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                        event.accepted = true
+                        if (!event.isAutoRepeat)
+                            MprisController.next()
+                    }
+                }
 
                 Rectangle {
                     anchors.fill: parent
@@ -315,6 +328,7 @@ Item {
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
+                    onPressed: parent.forceActiveFocus()
                     onClicked: MprisController.next()
                 }
             }
