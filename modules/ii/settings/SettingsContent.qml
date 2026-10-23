@@ -13,10 +13,13 @@ import qs.modules.common.functions as CF
 
 Item {
     id: root
-    property real contentPadding: 8
+    property real contentPadding: Appearance.design.isMacOS ? Appearance.design.space4 : 8
     property int currentPage: 0
     property bool showingProfile: false
     property bool isMinimal: Config.options.settings.style === "minimal"
+    property string searchQuery: ""
+    property int selectedSearchIndex: 0
+    readonly property var searchResults: SettingsSearchIndex.search(searchQuery, 6)
 
     function goToTarget(target) {
         const idx = root.pages.findIndex(p => p.id === target.page);
@@ -39,8 +42,27 @@ Item {
         }
     }
 
+    function activateSearchResult(result) {
+        if (!result) return
+        root.goToTarget({
+            page: result.pageId,
+            label: result.kind === "page" ? "" : (result.rawLabel ?? ""),
+            section: result.rawSection ?? "",
+            subsection: result.rawSubsection ?? ""
+        })
+        searchField.text = ""
+        root.forceActiveFocus()
+    }
+
     Connections {
         target: GlobalStates
+        target: GlobalStates
+        function onSettingsOpenChanged() {
+            if (!GlobalStates.settingsOpen) {
+                searchField.text = ""
+                root.selectedSearchIndex = 0
+            }
+        }
         function onSettingsTargetChanged() {
             const target = GlobalStates.settingsTarget;
             if (!target) return;
@@ -75,6 +97,192 @@ Item {
             margins: contentPadding
         }
 
+        Item {
+            id: chromeHeader
+            visible: Appearance.design.isMacOS
+            Layout.fillWidth: true
+            Layout.preferredHeight: visible ? 48 : 0
+
+            RowLayout {
+                anchors.fill: parent
+                spacing: 12
+
+                StyledText {
+                    text: Translation.tr("Settings")
+                    color: Appearance.colors.colOnLayer0
+                    font.family: Appearance.font.family.title
+                    font.pixelSize: Appearance.font.pixelSize.larger
+                    font.weight: Font.DemiBold
+                }
+
+                Item { Layout.fillWidth: true }
+
+                Rectangle {
+                    id: searchFieldWrap
+                    Layout.preferredWidth: Math.min(320, Math.max(190, root.width * 0.34))
+                    Layout.preferredHeight: Appearance.design.controlHeight
+                    radius: Appearance.design.radiusControl
+                    color: Appearance.colors.colLayer1
+                    border.width: searchField.activeFocus ? 1 : 0
+                    border.color: searchField.activeFocus ? Appearance.colors.colPrimary : Appearance.colors.colOutlineVariant
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 11
+                        anchors.rightMargin: 10
+                        spacing: 8
+
+                        MaterialSymbol {
+                            text: "search"
+                            iconSize: 18
+                            color: Appearance.colors.colSubtext
+                        }
+
+                        TextField {
+                            id: searchField
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            background: null
+                            placeholderText: Translation.tr("Search settings")
+                            placeholderTextColor: Appearance.colors.colSubtext
+                            color: Appearance.colors.colOnLayer1
+                            font.family: Appearance.font.family.main
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            leftPadding: 0
+                            rightPadding: 0
+                            selectByMouse: true
+                            Accessible.name: Translation.tr("Search settings")
+                            onTextChanged: {
+                                root.searchQuery = text
+                                root.selectedSearchIndex = 0
+                            }
+                            onAccepted: {
+                                if (root.searchResults.length > 0)
+                                    root.activateSearchResult(root.searchResults[root.selectedSearchIndex])
+                            }
+                            Keys.onPressed: event => {
+                                if (event.key === Qt.Key_Down && root.searchResults.length > 0) {
+                                    root.selectedSearchIndex = Math.min(root.searchResults.length - 1, root.selectedSearchIndex + 1)
+                                    event.accepted = true
+                                } else if (event.key === Qt.Key_Up && root.searchResults.length > 0) {
+                                    root.selectedSearchIndex = Math.max(0, root.selectedSearchIndex - 1)
+                                    event.accepted = true
+                                } else if (event.key === Qt.Key_Escape && root.searchQuery.length > 0) {
+                                    searchField.text = ""
+                                    event.accepted = true
+                                }
+                            }
+                        }
+                    }
+                }
+
+                RippleButton {
+                    implicitWidth: 34
+                    implicitHeight: 34
+                    buttonRadius: height / 2
+                    buttonText: Translation.tr("Close settings")
+                    colBackground: "transparent"
+                    colBackgroundHover: Appearance.colors.colLayer1Hover
+                    onClicked: {
+                        searchField.text = ""
+                        GlobalStates.settingsOpen = false
+                    }
+                    contentItem: MaterialSymbol {
+                        text: "close"
+                        iconSize: 18
+                        color: Appearance.colors.colOnLayer1
+                    }
+                }
+            }
+
+            Rectangle {
+                id: searchResultsPopup
+                visible: root.searchQuery.trim().length > 0
+                z: 30
+                x: searchFieldWrap.mapToItem(root, 0, 0).x
+                y: searchFieldWrap.mapToItem(root, 0, searchFieldWrap.height).y + 6
+                width: searchFieldWrap.width
+                height: Math.min(300, Math.max(54, searchResultsList.contentHeight + 12))
+                radius: Appearance.design.radiusCard
+                color: Appearance.colors.colUiPopupBackground
+                border.width: 1
+                border.color: Appearance.colors.colOutlineVariant
+                clip: true
+
+                ListView {
+                    id: searchResultsList
+                    anchors.fill: parent
+                    anchors.margins: Appearance.design.space2
+                    clip: true
+                    model: root.searchResults
+                    currentIndex: root.selectedSearchIndex
+                    visible: count > 0
+                    delegate: Item {
+                        required property var modelData
+                        required property int index
+                        width: ListView.view.width
+                        height: 44
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: Appearance.design.radiusSmall
+                            color: index === root.selectedSearchIndex ? Appearance.colors.colLayer2Hover : "transparent"
+                        }
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 10
+                            anchors.rightMargin: 10
+                            spacing: 10
+
+                            MaterialSymbol {
+                                text: modelData.icon
+                                iconSize: 18
+                                color: Appearance.colors.colPrimary
+                            }
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 1
+
+                                StyledText {
+                                    Layout.fillWidth: true
+                                    text: modelData.label
+                                    color: Appearance.colors.colOnLayer2
+                                    font.pixelSize: Appearance.font.pixelSize.small
+                                    elide: Text.ElideRight
+                                }
+
+                                StyledText {
+                                    Layout.fillWidth: true
+                                        text: modelData.kind === "page" ? Translation.tr("Page")
+                                            : (modelData.subsection
+                                                ? modelData.pageName + " · " + modelData.section + " · " + modelData.subsection
+                                                : (modelData.section ? modelData.pageName + " · " + modelData.section : modelData.pageName))
+                                        color: Appearance.colors.colSubtext
+                                        font.pixelSize: Appearance.font.pixelSize.smallest
+                                        elide: Text.ElideRight
+                                }
+                            }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.activateSearchResult(modelData)
+                        }
+                    }
+                }
+
+                StyledText {
+                    anchors.centerIn: parent
+                    visible: root.searchResults.length === 0
+                    text: Translation.tr("No matching settings")
+                    color: Appearance.colors.colSubtext
+                    font.pixelSize: Appearance.font.pixelSize.small
+                }
+            }
+
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -84,9 +292,9 @@ Item {
                 id: navRailWrapper
                 Layout.fillHeight: true
                 Layout.margins: 0
-                implicitWidth: navRail.expanded ? 195 : fab.baseSize
-                color: isMinimal ? "transparent" : Appearance.colors.colLayer1
-                radius: Appearance.rounding.normal
+                implicitWidth: Appearance.design.isMacOS ? (navRail.expanded ? 224 : fab.baseSize) : (navRail.expanded ? 195 : fab.baseSize)
+                color: Appearance.design.isMacOS ? Appearance.colors.colLayer1 : (isMinimal ? "transparent" : Appearance.colors.colLayer1)
+                radius: Appearance.design.isMacOS ? Appearance.design.radiusCard : Appearance.rounding.normal
 
                 Behavior on implicitWidth {
                     animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
@@ -94,9 +302,9 @@ Item {
 
                 NavigationRail {
                     id: navRail
-                    anchors { left: parent.left; top: parent.top; bottom: parent.bottom; leftMargin: 20 }
-                    spacing: 10
-                    expanded: root.width > 900
+                    anchors { left: parent.left; top: parent.top; bottom: parent.bottom; leftMargin: Appearance.design.isMacOS ? 12 : 20 }
+                    spacing: Appearance.design.isMacOS ? 4 : 10
+                    expanded: Appearance.design.isMacOS ? root.width > 640 : root.width > 900
 
                     Item {
                         id: profileRowContainer
@@ -199,7 +407,7 @@ Item {
                     NavigationRailTabArray {
                         currentIndex: root.currentPage
                         expanded: navRail.expanded
-                        colToggled: root.showingProfile ? "transparent" : Appearance.colors.colSecondaryContainer
+                        colToggled: Appearance.design.isMacOS ? (root.showingProfile ? "transparent" : Appearance.colors.colPrimaryContainer) : (root.showingProfile ? "transparent" : Appearance.colors.colSecondaryContainer)
                         Repeater {
                             model: root.pages
                             NavigationRailButton {

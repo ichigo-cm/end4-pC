@@ -13,6 +13,7 @@ Singleton {
     property QtObject rounding
     property QtObject font
     property QtObject sizes
+    property QtObject design
     property string syntaxHighlightingTheme
 
     // Transparency. The quadratic functions were derived from analysis of hand-picked transparency values.
@@ -33,7 +34,50 @@ Singleton {
     property real autoContentTransparency: 0.9
     property real backgroundTransparency: Config?.options.appearance.transparency.enable ? Config?.options.appearance.transparency.automatic ? autoBackgroundTransparency : Config?.options.appearance.transparency.backgroundTransparency : 0
     property real contentTransparency: Config?.options.appearance.transparency.automatic ? autoContentTransparency : Config?.options.appearance.transparency.contentTransparency
-    
+
+    design: QtObject {
+        readonly property bool isMacOS: Config.options.appearance.shellStyle === "macos"
+        readonly property color accent: "#d71921"
+        readonly property color canvas: Config.options.appearance.uiBackground === "oled" ? "#000000" : "#101114"
+        readonly property color surface0: "#141519"
+        readonly property color surface1: "#1a1b20"
+        readonly property color surface2: "#222329"
+        readonly property color surface3: "#2a2b31"
+        readonly property color surface4: "#33343a"
+        readonly property color foreground: "#f5f5f7"
+        readonly property color foregroundSecondary: "#b4b5ba"
+        readonly property color foregroundTertiary: "#82838a"
+        readonly property color outline: "#55565d"
+        readonly property color outlineVariant: "#37383e"
+        readonly property color accentContainer: "#3c1217"
+        readonly property color onAccentContainer: "#f8e7e8"
+        readonly property color statusError: "#ff6b6b"
+        readonly property color statusSuccess: "#77d6a2"
+        readonly property color statusSuccessContainer: "#183127"
+        readonly property color onStatusSuccessContainer: "#d8f3e2"
+        readonly property real hairlineWidth: 1
+        readonly property int space2: 8
+        readonly property int space3: 12
+        readonly property int space4: 16
+        readonly property int space5: 20
+        readonly property int controlHeight: 36
+        readonly property int iconSizeSmall: 16
+        readonly property int iconSizeRegular: 18
+        readonly property int iconSizeLarge: 22
+        readonly property bool reducedMotion: !Config.options.hyprland.animations.enable
+        readonly property real windowOpacity: Config.options.appearance.transparency.enable
+            ? Math.max(0.90, 1 - root.backgroundTransparency) : 1
+        readonly property real barOpacity: Config.options.appearance.transparency.enable
+            ? Math.max(0.86, 1 - root.backgroundTransparency) : 1
+        readonly property int motionFast: reducedMotion ? 0 : 130
+        readonly property int motionStandard: reducedMotion ? 0 : 200
+        readonly property int motionRelaxed: reducedMotion ? 0 : 280
+        readonly property int radiusSmall: 8
+        readonly property int radiusControl: 10
+        readonly property int radiusCard: 16
+        readonly property int radiusWindow: 18
+    }
+
     function getColorFromName(name) {
         switch (name) {
             case "primary":            return colors.colPrimary
@@ -222,15 +266,15 @@ Singleton {
 
     rounding: QtObject {
         property int unsharpen: 2
-        property int unsharpenmore: 6
-        property int verysmall: 8
-        property int small: 12
-        property int normal: 17
-        property int large: 23
-        property int verylarge: 30
+        property int unsharpenmore: root.design.isMacOS ? 4 : 6
+        property int verysmall: root.design.isMacOS ? 6 : 8
+        property int small: root.design.isMacOS ? 9 : 12
+        property int normal: root.design.isMacOS ? 13 : 17
+        property int large: root.design.isMacOS ? 18 : 23
+        property int verylarge: root.design.isMacOS ? 24 : 30
         property int full: 9999
         property int screenRounding: large
-        property int windowRounding: 18
+        property int windowRounding: root.design.isMacOS ? root.design.radiusWindow : 18
     }
 
     font: QtObject {

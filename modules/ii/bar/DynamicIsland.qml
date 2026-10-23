@@ -279,6 +279,8 @@ Item {
             ? Appearance.getColorFromName(Config.options.bar.frameColor)
             : Appearance.colors.colUiBackground
         radius: height / 2
+        border.width: root.isMacStyle ? Appearance.design.hairlineWidth : 0
+        border.color: root.isMacStyle ? Appearance.colors.colOutlineVariant : "transparent"
         clip: true
         visible: !root.vertical
 

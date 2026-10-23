@@ -19,6 +19,8 @@ Scope {
 
     readonly property real sizeScale: Config.options.settings.style === "minimal" ? 0.75 : 1.0
     property bool isMinimal: Config.options.settings.style === "minimal"
+    property real resizedWidth: 0
+    property real resizedHeight: 0
 
     Component.onCompleted: {
         GlobalStates.settingsOpen = false;
@@ -80,25 +82,27 @@ Scope {
 
         Rectangle {
             id: settingsWindow
-            width: Config.options.settings.style === "minimal" ? Math.min(parent.width - 70, 980 * sizeScale) : Math.min(parent.width - 80, 980 * sizeScale)
-            height: Math.min(parent.height - 80, 665 * sizeScale)
-            color: Appearance.colors.colUiBackground
+            width: Math.min(parent.width - (isMinimal ? 70 : 80), root.resizedWidth > 0 ? root.resizedWidth : 980 * sizeScale)
+            height: Math.min(parent.height - 80, root.resizedHeight > 0 ? root.resizedHeight : 665 * sizeScale)
+            color: Appearance.design.isMacOS
+                ? CF.ColorUtils.transparentize(Appearance.design.canvas, 1 - Appearance.design.windowOpacity)
+                : Appearance.colors.colUiBackground
             border.width: Config.options.settings.borderSize
             border.color: CF.ColorUtils.transparentize(Appearance.getColorFromName(Config.options.settings.borderColor), 0.8)
-            radius: !isMinimal ? Appearance.rounding.screenRounding - Appearance.sizes.hyprlandGapsOut + 5 : Appearance.rounding.screenRounding + 5
+            radius: Appearance.design.isMacOS ? Appearance.design.radiusCard : (!isMinimal ? Appearance.rounding.screenRounding - Appearance.sizes.hyprlandGapsOut + 5 : Appearance.rounding.screenRounding + 5)
             z: 1
 
             property bool userMoved: false
             anchors.centerIn: userMoved ? undefined : parent
 
             opacity: GlobalStates.settingsOpen ? 1 : 0
-            scale: GlobalStates.settingsOpen ? 1 : 0.95
+            scale: GlobalStates.settingsOpen ? 1 : (Appearance.design.isMacOS ? 0.98 : 0.95)
 
             Behavior on opacity {
-                NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                NumberAnimation { duration: Appearance.design.isMacOS ? Appearance.design.motionStandard : 200; easing.type: Easing.OutCubic }
             }
             Behavior on scale {
-                NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                NumberAnimation { duration: Appearance.design.isMacOS ? Appearance.design.motionStandard : 200; easing.type: Easing.OutCubic }
             }
 
             Keys.onTabPressed: (event) => {
@@ -139,8 +143,8 @@ Scope {
                 id: dragHandle
                 anchors.top: parent.top
                 anchors.left: parent.left
-                anchors.right: parent.right
-                height: 32
+                width: Appearance.design.isMacOS ? 160 : parent.width
+                height: Appearance.design.isMacOS ? 48 : 32
                 color: "transparent"
                 z: 2
 
@@ -157,6 +161,50 @@ Scope {
             SettingsContent {
                 id: settingsContent
                 anchors.fill: parent
+            }
+
+            Item {
+                id: resizeGrip
+                visible: Appearance.design.isMacOS
+                width: 22
+                height: 22
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                z: 5
+
+                MaterialSymbol {
+                    anchors.fill: parent
+                    text: "drag_handle"
+                    iconSize: 16
+                    rotation: 45
+                    color: Appearance.colors.colSubtext
+                    opacity: 0.8
+                }
+
+                MouseArea {
+                    id: resizeMouseArea
+                    anchors.fill: parent
+                    cursorShape: Qt.SizeFDiagCursor
+                    property point startPointer: Qt.point(0, 0)
+                    property real startWidth: 0
+                    property real startHeight: 0
+
+                    onPressed: mouse => {
+                        startPointer = resizeMouseArea.mapToItem(panelWindow, mouse.x, mouse.y)
+                        startWidth = settingsWindow.width
+                        startHeight = settingsWindow.height
+                    }
+                    onPositionChanged: mouse => {
+                        if (!pressed) return
+                        const pointer = resizeMouseArea.mapToItem(panelWindow, mouse.x, mouse.y)
+                        const maxWidth = Math.max(1, panelWindow.width - 80)
+                        const maxHeight = Math.max(1, panelWindow.height - 80)
+                        const minWidth = Math.min(820, maxWidth)
+                        const minHeight = Math.min(560, maxHeight)
+                        root.resizedWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + pointer.x - startPointer.x))
+                        root.resizedHeight = Math.max(minHeight, Math.min(maxHeight, startHeight + pointer.y - startPointer.y))
+                    }
+                }
             }
         }
     }

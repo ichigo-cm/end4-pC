@@ -41,7 +41,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: ColorUtils.applyAlpha(Appearance.colors.colUiBackground, 0.82)
+        color: ColorUtils.applyAlpha(Appearance.colors.colUiBackground, Appearance.design.barOpacity)
     }
 
     Rectangle {
@@ -74,26 +74,30 @@ Item {
         height: parent.height
         clip: true
 
-        RowLayout {
+        Row {
+            id: leftRow
             anchors.fill: parent
-            spacing: 4
+            spacing: 8
 
             LauncherButton {
-                Layout.alignment: Qt.AlignVCenter
+                width: 28
+                height: 28
+                anchors.verticalCenter: parent.verticalCenter
                 isMaterial: false
                 iconSize: 17
                 contentColor: root.foreground
                 contentColorOverridden: true
-                implicitWidth: 28
-                implicitHeight: 28
                 Accessible.name: Translation.tr("Applications and workspaces")
             }
 
             StyledText {
-                Layout.alignment: Qt.AlignVCenter
-                Layout.maximumWidth: Math.max(56, leftRegion.width - 240)
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.max(0, Math.min(
+                    implicitWidth,
+                    Math.min(160, leftRegion.width - 28 - leftRow.spacing * 2 - settingsAction.width)
+                ))
                 text: root.activeAppName
-                font.pixelSize: Appearance.font.pixelSize.smallie
+                font.pixelSize: Appearance.font.pixelSize.small
                 font.weight: Font.DemiBold
                 color: root.foreground
                 elide: Text.ElideRight
@@ -103,10 +107,11 @@ Item {
 
             Item {
                 id: settingsAction
-                Layout.alignment: Qt.AlignVCenter
+                anchors.verticalCenter: parent.verticalCenter
                 implicitWidth: settingsLabel.implicitWidth + 14
-                implicitHeight: 26
                 visible: leftRegion.width > 300
+                width: visible ? implicitWidth : 0
+                height: 26
                 activeFocusOnTab: visible
                 Accessible.role: Accessible.Button
                 Keys.onReturnPressed: root.openBarSettings()

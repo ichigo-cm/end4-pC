@@ -4,6 +4,7 @@ import Quickshell
 import qs
 import qs.modules.common
 import qs.modules.common.widgets
+import qs.modules.common.functions as CF
 
 Scope {
     id: root
@@ -15,8 +16,10 @@ Scope {
 
         sourceComponent: FloatingWindow {
             id: window
-            title: "illogical-impulse Settings"
-            color: Appearance.colors.colUiBackground
+            title: Appearance.design.isMacOS ? "Settings" : "illogical-impulse Settings"
+            color: Appearance.design.isMacOS
+                ? CF.ColorUtils.transparentize(Appearance.design.canvas, 1 - Appearance.design.windowOpacity)
+                : Appearance.colors.colUiBackground
 
             implicitWidth: 1100
             implicitHeight: 680

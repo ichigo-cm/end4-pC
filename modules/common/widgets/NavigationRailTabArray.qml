@@ -7,7 +7,7 @@ Item {
     id: root
     property int currentIndex: 0
     property bool expanded: false
-    property color colToggled: Appearance.colors.colSecondaryContainer
+    property color colToggled: Appearance.design.isMacOS ? Appearance.colors.colPrimaryContainer : Appearance.colors.colSecondaryContainer
     default property alias data: tabBarColumn.data  
     implicitHeight: tabBarColumn.implicitHeight
     implicitWidth: tabBarColumn.implicitWidth
@@ -21,14 +21,14 @@ Item {
             left: tabBarColumn.left
             topMargin: itemHeight * root.currentIndex + (root.expanded ? 0 : ((itemHeight - baseHighlightHeight) / 2))
         }
-        radius: Config.options.settings.style === "minimal" ? Appearance.rounding.small : Appearance.rounding.full
+        radius: Appearance.design.isMacOS ? Appearance.design.radiusControl : (Config.options.settings.style === "minimal" ? Appearance.rounding.small : Appearance.rounding.full)
         color: root.colToggled
         implicitHeight: root.expanded ? itemHeight : baseHighlightHeight
         implicitWidth: tabBarColumn?.children[root.currentIndex]?.visualWidth ?? 100
 
         Behavior on anchors.topMargin {
             NumberAnimation {
-                duration: Appearance.animationCurves.expressiveFastSpatialDuration
+                duration: Appearance.design.isMacOS ? Appearance.design.motionFast : Appearance.animationCurves.expressiveFastSpatialDuration
                 easing.type: Appearance.animation.elementMove.type
                 easing.bezierCurve: Appearance.animationCurves.expressiveFastSpatial
             }

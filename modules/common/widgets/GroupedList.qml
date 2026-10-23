@@ -5,17 +5,17 @@ import QtQuick.Layouts
 Item {
     id: root
     default property list<Item> items
-    property real bigRadius: Appearance.rounding.normal
+    property real bigRadius: Appearance.design.isMacOS ? Appearance.rounding.small : Appearance.rounding.normal
     property real smallRadius: Appearance.rounding.unsharpenmore
     property color bgcolor: Appearance.colors.colLayer1
-    property real itemVerticalPadding: 24
+    property real itemVerticalPadding: Appearance.design.isMacOS ? 18 : 24
     Layout.fillWidth: true
     implicitHeight: col.implicitHeight
 
     ColumnLayout {
         id: col
         anchors.fill: parent
-        spacing: 2
+        spacing: Appearance.design.isMacOS ? 1 : 2
 
         Repeater {
             model: root.items.length
@@ -41,7 +41,7 @@ Item {
 
                 ColumnLayout {
                     id: contentArea
-                    anchors { fill: parent; margins: 8 }
+                    anchors { fill: parent; margins: Appearance.design.isMacOS ? 12 : 8 }
                     spacing: 0
                 }
             }

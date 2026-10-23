@@ -19,9 +19,16 @@ MouseArea {
     signal styleEditorRequested()
 
     hoverEnabled: true
+    activeFocusOnTab: true
     acceptedButtons: Qt.LeftButton | Qt.RightButton
     implicitWidth: 20
     implicitHeight: 20
+    Keys.onPressed: (event) => {
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+            root.item.activate();
+            event.accepted = true;
+        }
+    }
     onPressed: (event) => {
         switch (event.button) {
         case Qt.LeftButton:
@@ -42,6 +49,20 @@ MouseArea {
     }
     onEntered: {
         tooltip.text = TrayService.getTooltipForItem(root.item);
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: -3
+        radius: Appearance.design.radiusSmall
+        visible: Appearance.design.isMacOS
+        opacity: root.containsMouse || root.targetMenuOpen || root.activeFocus ? 1 : 0
+        color: root.targetMenuOpen ? Appearance.colors.colPrimaryContainer : Appearance.colors.colLayer1Hover
+        border.width: root.targetMenuOpen ? 1 : 0
+        border.color: Appearance.colors.colOutlineVariant
+        Behavior on opacity {
+            NumberAnimation { duration: Appearance.design.motionFast; easing.type: Easing.OutCubic }
+        }
     }
 
     Loader {

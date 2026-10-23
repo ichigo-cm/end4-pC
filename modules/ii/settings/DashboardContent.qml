@@ -15,7 +15,7 @@ Item {
 
     property int currentPage: GlobalStates.dashboardPage
     property int pendingPage: GlobalStates.dashboardPage
-    property int staggerMs: 45 / Math.max(0.5, Config.options.settings.animationSpeed ?? 1)
+    property int staggerMs: Config.options.hyprland.animations.enable ? 45 / Math.max(0.5, Config.options.settings.animationSpeed ?? 1) : 0
     property var pageBoxes: buildPage(GlobalStates.dashboardPage)
     property int selectedIndex: 0
     property bool searchOpen: false
@@ -253,7 +253,9 @@ Item {
 
     Timer {
         id: switchTimer
-        interval: (320 / Math.max(0.5, Config.options.settings.animationSpeed ?? 1)) + Math.max(root.pageBoxes.length, 6) * (root.staggerMs - 4)
+        interval: Config.options.hyprland.animations.enable
+            ? (320 / Math.max(0.5, Config.options.settings.animationSpeed ?? 1)) + Math.max(root.pageBoxes.length, 6) * Math.max(0, root.staggerMs - 4)
+            : 0
         onTriggered: {
             root.currentPage = root.pendingPage;
             GlobalStates.dashboardPage = root.currentPage;
@@ -305,8 +307,8 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 radius: height / 2
                 color: ui.surface
-                border.width: 2
-                border.color: ui.accent
+                border.width: Appearance.design.isMacOS ? 1 : 2
+                border.color: Appearance.design.isMacOS ? Appearance.colors.colOutlineVariant : ui.accent
                 implicitHeight: 44
                 implicitWidth: distroPillRow.implicitWidth + 28
 
@@ -320,11 +322,22 @@ Item {
                         source: Quickshell.iconPath(SystemInfo.logo)
                     }
 
-                    StyledText {
-                        text: SystemInfo.distroName
-                        font.pixelSize: Appearance.font.pixelSize.normal
-                        font.weight: Font.Medium
-                        color: ui.fgSurface
+                    ColumnLayout {
+                        spacing: 0
+
+                        StyledText {
+                            text: Appearance.design.isMacOS ? Translation.tr("Control Center") : SystemInfo.distroName
+                            font.pixelSize: Appearance.font.pixelSize.normal
+                            font.weight: Font.Medium
+                            color: ui.fgSurface
+                        }
+
+                        StyledText {
+                            visible: Appearance.design.isMacOS
+                            text: SystemInfo.distroName
+                            font.pixelSize: Appearance.font.pixelSize.smallest
+                            color: ui.subtext
+                        }
                     }
                 }
             }
@@ -348,7 +361,7 @@ Item {
                         buttonRadius: height / 2
                         toggled: root.pendingPage === index
                         onClicked: root.goToPage(index)
-                        colBackgroundToggled: ui.accent
+                        colBackgroundToggled: Appearance.design.isMacOS ? Appearance.colors.colPrimaryContainer : ui.accent
                         colBackgroundToggledHover: ui.accentHover
                         colRippleToggled: ui.accentActive
                         colBackgroundHover: ui.hover

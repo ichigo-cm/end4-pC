@@ -80,7 +80,7 @@ ColumnLayout {
     }
 
     Layout.fillWidth: true
-    spacing: 6
+    spacing: Appearance.design.isMacOS ? 10 : 6
 
     Item {
         id: header
@@ -147,7 +147,7 @@ ColumnLayout {
 
             MaterialSymbol {
                 visible: root.collapsible
-                text: root.collapsed ? "expand_more" : ""
+                text: Appearance.design.isMacOS ? (root.collapsed ? "chevron_right" : "expand_more") : (root.collapsed ? "expand_more" : "")
                 iconSize: Appearance.font.pixelSize.larger
                 color: Appearance.colors.colOnSecondaryContainer
                 opacity: 0.7

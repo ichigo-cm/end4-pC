@@ -17,7 +17,7 @@ Item {
 
     property real baseWidth: 600
     property bool forceWidth: false
-    property real bottomContentPadding: Config.options.settings.style === "minimal" ? 40 : 90
+    property real bottomContentPadding: Appearance.design.isMacOS ? 36 : (Config.options.settings.style === "minimal" ? 40 : 90)
 
     // Children placed in ContentPage appear inside the ColumnLayout
     default property alias data: contentColumn.data
@@ -42,9 +42,9 @@ Item {
             anchors {
                 top: parent.top
                 horizontalCenter: parent.horizontalCenter
-                margins: 20
+                margins: Appearance.design.isMacOS ? 16 : 20
             }
-            spacing: 30
+            spacing: Appearance.design.isMacOS ? Appearance.design.space5 : 30
         }
 
         ClippingRectangle {

@@ -249,13 +249,13 @@ ContentPage {
                     ]
                 }
                 ConfigSelectionArray {
-                    text: Translation.tr("Menu bar and Dynamic Island")
+                    text: Translation.tr("Shell appearance")
                     icon: "style"
                     currentValue: Config.options.appearance.shellStyle
                     onSelected: newValue => { Config.options.appearance.shellStyle = newValue }
                     options: [
                         { displayName: Translation.tr("Material 3 / HUG"), icon: "category", value: "material" },
-                        { displayName: Translation.tr("macOS"), icon: "dock_to_bottom", value: "macos" }
+                        { displayName: Translation.tr("macOS-inspired"), icon: "dock_to_bottom", value: "macos" }
                     ]
                 }
                 ConfigSelectionArray {
