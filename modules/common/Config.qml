@@ -792,6 +792,10 @@ Singleton {
                 // Attempt to remove dupes (the aggregator playerctl one and browsers' native ones when there's plasma browser integration)
                 property bool filterDuplicatePlayers: true
                 property bool karaokeAnimation: true
+                property string lyricMode: ""
+                property bool showRomanization: false
+                property bool showVocalLayers: true
+                property bool dynamicLyricsBackground: true
             }
 
             property JsonObject networking: JsonObject {

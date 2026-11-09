@@ -18,6 +18,12 @@ Singleton {
     property int revealedCharacters: 0
     property string status: "loading"
     property var slots: ["", "", "", "", "", "", ""]
+    property var fullSlots: ["", "", "", "", "", "", ""]
+    property var romanizedSlots: ["", "", "", "", "", "", ""]
+    property var fullRomanizedSlots: ["", "", "", "", "", "", ""]
+    property var activeVocalLayers: []
+    property bool romanizationSupported: false
+    property bool romanizationAvailable: false
 
     readonly property int before: 3
     readonly property int after: 3
@@ -25,7 +31,9 @@ Singleton {
 
     readonly property bool playing: root.activePlayer?.isPlaying ?? false
     readonly property bool synced: root.status === "ok" && root.lyricsLines.length > 0
-    readonly property bool karaokeMotion: Config.options.media.karaokeAnimation && !Config.options.appearance.reducedMotion
+    readonly property string lyricMode: Config.options.media.lyricMode || (Config.options.media.karaokeAnimation ? "karaoke" : "line")
+    readonly property bool karaokeMotion: root.lyricMode === "karaoke" && !Config.options.appearance.reducedMotion
+    readonly property bool hasTimedVocals: root.lyricsLines.some(line => Array.isArray(line.vocalLayers) && line.vocalLayers.length > 0)
     readonly property real leadSeconds: 0.15
 
     property real basePosition: 0
@@ -41,6 +49,52 @@ Singleton {
                 result.push("")
         }
         return result
+    }
+
+    function buildRomanizedSlots(idx) {
+        let result = []
+        for (let i = 0; i < root.total; i++) {
+            const lineIdx = idx - root.before + i
+            if (lineIdx >= 0 && lineIdx < root.lyricsLines.length)
+                result.push(root.lyricsLines[lineIdx].romanizedText || "")
+            else
+                result.push("")
+        }
+        return result
+    }
+
+    function buildFullSlots(idx) {
+        let result = []
+        for (let i = 0; i < root.total; i++) {
+            const lineIdx = idx - root.before + i
+            if (lineIdx >= 0 && lineIdx < root.lyricsLines.length)
+                result.push(root.lyricsLines[lineIdx].fullText || root.lyricsLines[lineIdx].text || "♪")
+            else
+                result.push("")
+        }
+        return result
+    }
+
+    function buildFullRomanizedSlots(idx) {
+        let result = []
+        for (let i = 0; i < root.total; i++) {
+            const lineIdx = idx - root.before + i
+            if (lineIdx >= 0 && lineIdx < root.lyricsLines.length)
+                result.push(root.lyricsLines[lineIdx].romanizedFullText || root.lyricsLines[lineIdx].romanizedText || "")
+            else
+                result.push("")
+        }
+        return result
+    }
+
+    function vocalLayersAt(index, position) {
+        const line = root.lyricsLines[index]
+        if (!line || !Array.isArray(line.vocalLayers)) return []
+        return line.vocalLayers.filter(layer => {
+            const start = Number(layer.time ?? line.time)
+            const end = Number(layer.end)
+            return Number.isFinite(start) && position >= start && (!Number.isFinite(end) || end <= start || position <= end)
+        })
     }
 
     function currentPosition() {
@@ -59,13 +113,16 @@ Singleton {
     function revealCountAt(index, position) {
         const line = root.lyricsLines[index]
         if (!line) return 0
-        const text = String(line.text ?? "")
+        const useVocalLayers = Config.options.media.showVocalLayers
+        const text = String(useVocalLayers ? (line.text ?? "") : (line.fullText ?? line.text ?? ""))
         const characters = Array.from(text)
         if (characters.length === 0) return 0
 
         const lineStart = Number(line.time)
         const fallbackEnd = root.lineEndPosition(index, lineStart, characters.length)
-        const cues = Array.isArray(line.cues) ? line.cues : []
+        const cues = useVocalLayers
+            ? (Array.isArray(line.cues) ? line.cues : [])
+            : (Array.isArray(line.fullCues) ? line.fullCues : (Array.isArray(line.cues) ? line.cues : []))
         let matchedCues = 0
         let revealed = 0
         let cursor = 0
@@ -130,7 +187,10 @@ Singleton {
     function karaokeMarkup(playedColor, pendingColor) {
         const line = root.lyricsLines[root.activeIndex]
         if (!line) return ""
-        const characters = Array.from(String(line.text ?? ""))
+        const displayText = Config.options.media.showVocalLayers
+            ? (line.text ?? "")
+            : (line.fullText ?? line.text ?? "")
+        const characters = Array.from(String(displayText))
         const count = Math.max(0, Math.min(characters.length, root.revealedCharacters))
         const played = playedColor.toString()
         const pending = pendingColor.toString()
@@ -177,8 +237,13 @@ Singleton {
         if (idx !== root.activeIndex) {
             root.activeIndex = idx
             root.slots = root.buildSlots(idx)
+            root.fullSlots = root.buildFullSlots(idx)
+            root.romanizedSlots = root.buildRomanizedSlots(idx)
+            root.fullRomanizedSlots = root.buildFullRomanizedSlots(idx)
         }
-        root.updateKaraoke()
+        root.activeVocalLayers = root.vocalLayersAt(idx, position)
+        if (root.karaokeMotion) root.updateKaraoke()
+        else root.revealedCharacters = 0
 
         const next = root.lyricsLines[idx + 1]
         if (!root.playing || !next) return
@@ -204,15 +269,17 @@ Singleton {
 
     Timer {
         id: lyricProgressTimer
-        interval: 50
+        interval: root.karaokeMotion ? 50 : 100
         repeat: true
-        running: root.synced && root.playing && root.karaokeMotion
+        running: root.synced && root.playing && (root.karaokeMotion || root.hasTimedVocals)
         onTriggered: {
             const index = root.indexAt(root.currentPosition() + root.leadSeconds)
             if (index !== root.activeIndex)
                 root.update()
-            else
-                root.updateKaraoke()
+            else {
+                if (root.karaokeMotion) root.updateKaraoke()
+                root.activeVocalLayers = root.vocalLayersAt(index, root.currentPosition() + root.leadSeconds)
+            }
         }
     }
 
@@ -238,12 +305,42 @@ Singleton {
                     try {
                         const payload = JSON.parse(trimmed)
                         if (payload.status !== "ok" || !Array.isArray(payload.lines)) return
+                        root.romanizationSupported = payload.romanizationSupported === true
+                        root.romanizationAvailable = payload.romanizationAvailable === true
                         lines = payload.lines
                             .filter(line => Number.isFinite(Number(line?.time)) && typeof line?.text === "string")
                             .map(line => {
-                                const normalized = { time: Number(line.time), text: line.text }
+                                const normalized = {
+                                    time: Number(line.time),
+                                    text: line.text,
+                                    fullText: typeof line.fullText === "string" ? line.fullText : line.text,
+                                    romanizedText: typeof line.romanizedText === "string" ? line.romanizedText : "",
+                                    romanizedFullText: typeof line.romanizedFullText === "string" ? line.romanizedFullText : (line.romanizedText || "")
+                                }
                                 if (Array.isArray(line.cues)) {
                                     normalized.cues = line.cues
+                                        .filter(cue => Number.isFinite(Number(cue?.time)) && typeof cue?.text === "string")
+                                        .map(cue => {
+                                            const item = { time: Number(cue.time), text: cue.text }
+                                            if (Number.isFinite(Number(cue.end))) item.end = Number(cue.end)
+                                            return item
+                                        })
+                                }
+                                if (Array.isArray(line.vocalLayers)) {
+                                    normalized.vocalLayers = line.vocalLayers
+                                        .filter(layer => typeof layer?.text === "string" && layer.text.trim().length > 0)
+                                        .map(layer => {
+                                            const item = {
+                                                type: layer.type === "side" ? "side" : "background",
+                                                text: layer.text,
+                                                time: Number.isFinite(Number(layer.time)) ? Number(layer.time) : Number(line.time)
+                                            }
+                                            if (Number.isFinite(Number(layer.end))) item.end = Number(layer.end)
+                                            return item
+                                        })
+                                }
+                                if (Array.isArray(line.fullCues)) {
+                                    normalized.fullCues = line.fullCues
                                         .filter(cue => Number.isFinite(Number(cue?.time)) && typeof cue?.text === "string")
                                         .map(cue => {
                                             const item = { time: Number(cue.time), text: cue.text }
@@ -264,7 +361,7 @@ Singleton {
                     for (let i = 0; i < parts.length - 1; i += 2) {
                         const time = Number.parseFloat(parts[i])
                         const text = parts[i + 1] || ""
-                        if (Number.isFinite(time)) lines.push({ time, text })
+                        if (Number.isFinite(time)) lines.push({ time, text, fullText: text, romanizedText: "", romanizedFullText: "", vocalLayers: [], fullCues: [] })
                     }
                 }
 
@@ -274,6 +371,10 @@ Singleton {
                 root.activeIndex = -1
                 root.revealedCharacters = 0
                 root.slots = root.buildSlots(-1)
+                root.fullSlots = root.buildFullSlots(-1)
+                root.romanizedSlots = root.buildRomanizedSlots(-1)
+                root.fullRomanizedSlots = root.buildFullRomanizedSlots(-1)
+                root.activeVocalLayers = []
                 root.status = "ok"
                 root.resync()
             }
@@ -287,6 +388,12 @@ Singleton {
         root.activeIndex = -1
         root.revealedCharacters = 0
         root.slots = ["", "", "", "", "", "", ""]
+        root.fullSlots = ["", "", "", "", "", "", ""]
+        root.romanizedSlots = ["", "", "", "", "", "", ""]
+        root.fullRomanizedSlots = ["", "", "", "", "", "", ""]
+        root.activeVocalLayers = []
+        root.romanizationSupported = false
+        root.romanizationAvailable = false
         root.status = "loading"
 
         const title = root.activePlayer?.trackTitle ?? ""
@@ -310,7 +417,8 @@ Singleton {
     }
 
     onActivePlayerChanged: restartDebounce.restart()
-    onKaraokeMotionChanged: root.updateKaraoke()
+    onKaraokeMotionChanged: root.update()
+    onLyricModeChanged: root.update()
 
     Connections {
         target: root.activePlayer

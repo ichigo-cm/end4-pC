@@ -14,6 +14,7 @@ Singleton {
     property bool barStyleEditorOpen: false
     property bool crosshairOpen: false
     property bool equalizerOpen: false
+    property bool lyricsFullscreenOpen: false
     property bool sidebarLeftOpen: false
     property bool sidebarRightOpen: false
     property bool mediaControlsOpen: false

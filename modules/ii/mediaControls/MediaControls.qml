@@ -4,6 +4,7 @@ import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.modules.common.functions
+import qs.modules.ii.overlay
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
@@ -31,6 +32,8 @@ Scope {
     readonly property real widgetWidth: Appearance.sizes.mediaControlsWidth
     readonly property real widgetHeight: Appearance.sizes.mediaControlsHeight
     property real popupRounding: Appearance.rounding.screenRounding - Appearance.sizes.hyprlandGapsOut + 1
+
+    LyricsImmersiveView {}
 
     readonly property string mediaPosition: {
         if (Config.options.bar.layouts.leftLayout.includes("media")) return "left"

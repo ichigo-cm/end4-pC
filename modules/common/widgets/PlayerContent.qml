@@ -54,6 +54,8 @@ Item {
         implicitWidth: 24
         implicitHeight: 24
         property var iconName
+        property string accessibleName: ""
+        Accessible.name: accessibleName
         colBackground: ColorUtils.transparentize(root.blendedColors.colSecondaryContainer, 1)
         colBackgroundHover: root.blendedColors.colSecondaryContainerHover
         colRipple: root.blendedColors.colSecondaryContainerActive
@@ -228,6 +230,7 @@ Item {
         x: root.textX
         y: root.rowY + (root.rowHeight - height) / 2
         iconName: "skip_previous"
+        accessibleName: Translation.tr("Previous track")
         downAction: () => root.player?.previous()
     }
 
@@ -281,17 +284,27 @@ Item {
 
         TrackChangeButton {
             iconName: "skip_next"
+            accessibleName: Translation.tr("Next track")
             downAction: () => root.player?.next()
         }
 
         TrackChangeButton {
             iconName: "lyrics"
             visible: root.lyricsAllowed && (root.lyricsMode || !GlobalStates.sidebarRightOpen)
+            accessibleName: root.lyricsMode ? Translation.tr("Hide lyrics") : Translation.tr("Show lyrics")
             downAction: () => root.toggleLyrics()
         }
 
         TrackChangeButton {
+            iconName: "open_in_full"
+            visible: root.lyricsAllowed && root.lyricsMode
+            accessibleName: Translation.tr("Open immersive lyrics")
+            downAction: () => GlobalStates.lyricsFullscreenOpen = true
+        }
+
+        TrackChangeButton {
             iconName: "equalizer"
+            accessibleName: Translation.tr("Equalizer")
             downAction: () => GlobalStates.equalizerOpen = !GlobalStates.equalizerOpen
         }
     }
@@ -303,6 +316,7 @@ Item {
         property real size: 44
         implicitWidth: size
         implicitHeight: size
+        Accessible.name: root.player?.isPlaying ? Translation.tr("Pause") : Translation.tr("Play")
         downAction: () => root.player.togglePlaying()
 
         buttonRadius: root.player?.isPlaying ? Appearance?.rounding.normal : size / 2
