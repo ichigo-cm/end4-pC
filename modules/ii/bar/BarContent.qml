@@ -19,6 +19,11 @@ Item {
     readonly property bool isSplitHug: Config.options.bar.cornerStyle === 6
     readonly property bool hasTabs: root.isMaterialHug || root.isSplitHug
     readonly property bool useTabWrapper: root.isMaterial || root.isSplitHug
+    readonly property bool glassTabs: root.hasTabs && Config.options.background.widgets.glass.enable
+    readonly property real tabFlare: root.glassTabs ? Appearance.rounding.screenRounding : 0
+    readonly property bool glassHug: Config.options.bar.cornerStyle === 0 && Config.options.background.widgets.glass.enable && Config.options.bar.showBackground
+    readonly property real hugFlare: root.glassHug && !root.centerOnly ? Appearance.rounding.screenRounding : 0
+    readonly property real pillFlare: root.glassHug && root.centerOnly ? Appearance.rounding.screenRounding : 0
     readonly property real splitGroupSpacing: Config.options.bar.borderless === "transparent" ? -7 : Config.options.bar.borderless === "segmented" ? -1 : 2
     readonly property color materialPillBgColor: (Config.options.bar.followFrameColor && Config.options.bar.frameColor)
         ? Appearance.getColorFromName(Config.options.bar.frameColor)
@@ -96,6 +101,11 @@ Item {
 
     WindowGlass {
         anchors.fill: barBackground
+        anchors.topMargin: Config.options.bar.bottom ? -root.hugFlare : 0
+        anchors.bottomMargin: Config.options.bar.bottom ? 0 : -root.hugFlare
+        hangLeft: root.hugFlare
+        hangRight: root.hugFlare
+        edge: Config.options.bar.bottom ? 1 : 0
         glassEnabled: barBackground.fill.a > 0
         cardRadius: barBackground.radius
         tint: barBackground.fill
@@ -115,7 +125,7 @@ Item {
     RoundCorner {
         id: leftPillCorner
         glass: true
-        visible: root.centerOnly && Config.options.bar.showBackground && Config.options.bar.cornerStyle === 0 
+        visible: root.centerOnly && Config.options.bar.showBackground && Config.options.bar.cornerStyle === 0 && !root.glassHug
         x: barContent.centerPillX - implicitSize
         implicitSize: Appearance.rounding.screenRounding
         color: Config.options.bar.followFrameColor
@@ -147,6 +157,11 @@ Item {
         id: centerPill
         WindowGlass {
             anchors.fill: parent
+            anchors.leftMargin: -root.pillFlare
+            anchors.rightMargin: -root.pillFlare
+            flareLeft: root.pillFlare
+            flareRight: root.pillFlare
+            edge: Config.options.bar.bottom ? 1 : 0
             glassEnabled: (parent?.fill.a ?? 0) > 0
             cardRadius: parent?.radius ?? 0
             topLeftRadius: parent && parent.topLeftRadius >= 0 ? parent.topLeftRadius : cardRadius
@@ -179,7 +194,7 @@ Item {
     RoundCorner {
         id: rightPillCorner
         glass: true
-        visible: root.centerOnly && Config.options.bar.showBackground && Config.options.bar.cornerStyle === 0
+        visible: root.centerOnly && Config.options.bar.showBackground && Config.options.bar.cornerStyle === 0 && !root.glassHug
         x: barContent.centerPillX + barContent.centerPillWidth
         implicitSize: Appearance.rounding.screenRounding
         color: Config.options.bar.followFrameColor
@@ -225,6 +240,12 @@ Item {
                 id: leftMaterialPill
                 WindowGlass {
                     anchors.fill: parent
+                    anchors.rightMargin: -root.tabFlare
+                    anchors.topMargin: Config.options.bar.bottom ? -root.tabFlare : 0
+                    anchors.bottomMargin: Config.options.bar.bottom ? 0 : -root.tabFlare
+                    flareRight: root.tabFlare
+                    hangLeft: root.tabFlare
+                    edge: Config.options.bar.bottom ? 1 : 0
                     glassEnabled: (parent?.fill.a ?? 0) > 0
                     cardRadius: parent?.radius ?? 0
                     topLeftRadius: parent && parent.topLeftRadius >= 0 ? parent.topLeftRadius : cardRadius
@@ -284,7 +305,7 @@ Item {
             RoundCorner {
                 id: leftRightOutwardCorner
                 glass: true
-                visible: root.hasTabs && root.effectiveLeftLayout.length > 0
+                visible: root.hasTabs && !root.glassTabs && root.effectiveLeftLayout.length > 0
                 anchors.left: leftMaterialPill.right
                 anchors.top: !Config.options.bar.bottom ? parent.top : undefined
                 anchors.bottom: Config.options.bar.bottom ? parent.bottom : undefined
@@ -372,7 +393,7 @@ Item {
             RoundCorner {
                 id: centerLeftOutwardCorner
                 glass: true
-                visible: root.hasTabs && root.effectiveMiddleLayout.length > 0
+                visible: root.hasTabs && !root.glassTabs && root.effectiveMiddleLayout.length > 0
                 anchors.right: centerMaterialPill.left
                 anchors.top: !Config.options.bar.bottom ? parent.top : undefined
                 anchors.bottom: Config.options.bar.bottom ? parent.bottom : undefined
@@ -386,6 +407,11 @@ Item {
                 id: centerMaterialPill
                 WindowGlass {
                     anchors.fill: parent
+                    anchors.leftMargin: -root.tabFlare
+                    anchors.rightMargin: -root.tabFlare
+                    flareLeft: root.tabFlare
+                    flareRight: root.tabFlare
+                    edge: Config.options.bar.bottom ? 1 : 0
                     glassEnabled: (parent?.fill.a ?? 0) > 0
                     cardRadius: parent?.radius ?? 0
                     topLeftRadius: parent && parent.topLeftRadius >= 0 ? parent.topLeftRadius : cardRadius
@@ -443,7 +469,7 @@ Item {
             RoundCorner {
                 id: centerRightOutwardCorner
                 glass: true
-                visible: root.hasTabs && root.effectiveMiddleLayout.length > 0
+                visible: root.hasTabs && !root.glassTabs && root.effectiveMiddleLayout.length > 0
                 anchors.left: centerMaterialPill.right
                 anchors.top: !Config.options.bar.bottom ? parent.top : undefined
                 anchors.bottom: Config.options.bar.bottom ? parent.bottom : undefined
@@ -512,7 +538,7 @@ Item {
             RoundCorner {
                 id: rightLeftOutwardCorner
                 glass: true
-                visible: root.hasTabs && root.effectiveRightLayout.length > 0
+                visible: root.hasTabs && !root.glassTabs && root.effectiveRightLayout.length > 0
                 anchors.right: rightMaterialPill.left
                 anchors.top: !Config.options.bar.bottom ? parent.top : undefined
                 anchors.bottom: Config.options.bar.bottom ? parent.bottom : undefined
@@ -526,6 +552,12 @@ Item {
                 id: rightMaterialPill
                 WindowGlass {
                     anchors.fill: parent
+                    anchors.leftMargin: -root.tabFlare
+                    anchors.topMargin: Config.options.bar.bottom ? -root.tabFlare : 0
+                    anchors.bottomMargin: Config.options.bar.bottom ? 0 : -root.tabFlare
+                    flareLeft: root.tabFlare
+                    hangRight: root.tabFlare
+                    edge: Config.options.bar.bottom ? 1 : 0
                     glassEnabled: (parent?.fill.a ?? 0) > 0
                     cardRadius: parent?.radius ?? 0
                     topLeftRadius: parent && parent.topLeftRadius >= 0 ? parent.topLeftRadius : cardRadius

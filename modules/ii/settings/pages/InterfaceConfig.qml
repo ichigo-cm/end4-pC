@@ -136,6 +136,12 @@ ContentPage {
                     enabled: Config.options.appearance.transparency.enable
                     onCheckedChanged: { Config.options.appearance.transparency.automatic = checked }
                 }
+                ConfigSwitch {
+                    buttonIcon: "water_drop"
+                    text: Translation.tr("Glassy UI")
+                    checked: Config.options.background.widgets.glass.enable
+                    onCheckedChanged: { Config.options.background.widgets.glass.enable = checked }
+                }
                 ConfigSlider {
                     buttonIcon: "layers"
                     text: Translation.tr("Background")
@@ -1499,6 +1505,12 @@ ContentPage {
                     text: Translation.tr("Terminal")
                     checked: Config.options.appearance.wallpaperTheming.enableTerminal
                     onCheckedChanged: { Config.options.appearance.wallpaperTheming.enableTerminal = checked }
+                }
+                ConfigSwitch {
+                    buttonIcon: "lock"
+                    text: Translation.tr("Keep Konsole color scheme")
+                    checked: Config.options.appearance.wallpaperTheming.lockKonsoleColors
+                    onCheckedChanged: { Config.options.appearance.wallpaperTheming.lockKonsoleColors = checked }
                 }
                 ConfigRow {
                     uniform: true

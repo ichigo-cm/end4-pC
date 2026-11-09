@@ -10,13 +10,22 @@ Item {
     property real bottomRightRadius: cardRadius
     property real bottomLeftRadius: cardRadius
     property color tint: "white"
-    property real tintOpacity: 0.3
-    readonly property real rimWidth: 4
-    readonly property real pull: 0
-    readonly property real split: 0
-    readonly property real haze: 6
-    readonly property real vividness: 1.25
-    readonly property real sheen: 0.31
+    property real tintOpacity: 0
+    readonly property string tintChoice: Config.options.background.widgets.glass.tint ?? "transparent"
+    readonly property bool tintOverride: tintChoice !== "transparent"
+    readonly property color washColor: tintOverride ? Appearance.getColorFromName(tintChoice) : tint
+    readonly property real washOpacity: tintOverride ? Config.options.background.widgets.glass.tintStrength : tintOpacity
+    readonly property real rimWidth: Config.options.background.widgets.glass.rimWidth
+    readonly property real pull: Config.options.background.widgets.glass.pull
+    readonly property real split: Config.options.background.widgets.glass.split
+    readonly property real haze: Config.options.background.widgets.glass.haze
+    readonly property real vividness: Config.options.background.widgets.glass.vividness
+    readonly property real sheen: Config.options.background.widgets.glass.sheen
+    property real flareLeft: 0
+    property real flareRight: 0
+    property real hangLeft: 0
+    property real hangRight: 0
+    property int edge: 0
     property real trackX: 0
     property real trackY: 0
 
@@ -49,8 +58,11 @@ Item {
         property real haze: root.haze
         property real vividness: root.vividness
         property real sheen: root.sheen
-        property color wash: Qt.rgba(root.tint.r, root.tint.g, root.tint.b, root.tintOpacity)
+        property vector2d flares: Qt.vector2d(root.flareLeft, root.flareRight)
+        property vector2d hangs: Qt.vector2d(root.hangLeft, root.hangRight)
+        property real edge: root.edge
+        property color wash: Qt.rgba(root.washColor.r, root.washColor.g, root.washColor.b, root.washOpacity)
 
-        fragmentShader: Qt.resolvedUrl("shaders/frostedLens.frag.qsb")
+        fragmentShader: Qt.resolvedUrl("shaders/liquidLens.frag.qsb")
     }
 }
