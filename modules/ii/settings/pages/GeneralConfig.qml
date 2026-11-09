@@ -45,6 +45,39 @@ ContentPage {
                         SystemAppearance.applyIconScheme()
                     }
                 }
+                ConfigComboBox {
+                    Layout.fillWidth: true
+                    buttonIcon: "palette"
+                    text: Translation.tr("GTK theme")
+                    fieldWidth: 260
+                    fixedWidth: true
+                    searchable: true
+                    visible: SystemTheming.gtkThemes.length > 0
+                    model: {
+                        const themes = SystemTheming.gtkThemes.map(theme => ({ displayName: theme, value: theme }))
+                        const currentTheme = SystemTheming.currentGtkTheme
+                        if (currentTheme && !themes.some(theme => theme.value === currentTheme)) {
+                            themes.unshift({
+                                displayName: Translation.tr("%1 (current; unavailable)").arg(currentTheme),
+                                value: currentTheme
+                            })
+                        }
+                        return themes
+                    }
+                    currentValue: SystemTheming.currentGtkTheme
+                    onSelected: newValue => SystemTheming.applyGtkTheme(newValue)
+                }
+                StyledText {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 44
+                    Layout.rightMargin: 8
+                    visible: SystemTheming.gtkThemes.length === 0
+                    color: Appearance.colors.colSubtext
+                    text: SystemTheming.currentGtkTheme
+                        ? Translation.tr("No GTK themes available. Current theme: %1").arg(SystemTheming.currentGtkTheme)
+                        : Translation.tr("No GTK themes available")
+                    wrapMode: Text.Wrap
+                }
                 ConfigSwitch {
                     buttonIcon: "brightness_6"
                     text: Translation.tr("Follow color scheme")

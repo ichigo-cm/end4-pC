@@ -25,11 +25,70 @@ AbstractBackgroundWidget {
     implicitWidth: row.implicitWidth
     implicitHeight: row.implicitHeight
 
+    component TrendIndicator: Canvas {
+        id: trendIndicator
+        property list<real> history: []
+        property color color: Appearance.colors.colPrimary
+        onHistoryChanged: requestPaint()
+        onColorChanged: requestPaint()
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
+        onPaint: {
+            const ctx = getContext("2d")
+            ctx.clearRect(0, 0, width, height)
+            if (width <= 0 || height <= 0 || !history || history.length === 0)
+                return
+
+            const samples = []
+            for (let i = 0; i < history.length; ++i) {
+                const value = Number(history[i])
+                if (isNaN(value) || !isFinite(value))
+                    continue
+                samples.push(value)
+            }
+            if (samples.length === 0)
+                return
+
+            ctx.strokeStyle = color
+            ctx.fillStyle = color
+            ctx.lineWidth = 1.5
+            ctx.lineCap = "round"
+            if (samples.length === 1) {
+                ctx.beginPath()
+                ctx.arc(width / 2, height / 2, 1.5, 0, Math.PI * 2)
+                ctx.fill()
+                return
+            }
+
+            let minimum = samples[0]
+            let maximum = samples[0]
+            for (let i = 1; i < samples.length; ++i) {
+                minimum = Math.min(minimum, samples[i])
+                maximum = Math.max(maximum, samples[i])
+            }
+            const range = maximum - minimum
+            const padding = 2
+            ctx.beginPath()
+            for (let i = 0; i < samples.length; ++i) {
+                const x = 0.75 + (i * (width - 1.5)) / (samples.length - 1)
+                const y = range === 0
+                    ? height / 2
+                    : height - padding - ((samples[i] - minimum) / range) * (height - 2 * padding)
+                if (i === 0)
+                    ctx.moveTo(x, y)
+                else
+                    ctx.lineTo(x, y)
+            }
+            ctx.stroke()
+        }
+    }
+
     component StatCard: WidgetCard {
         id: statCard
         property string icon: ""
         property string value: ""
         property string label: ""
+        property list<real> history: []
         property int shape: MaterialShape.Shape.Cookie12Sided
         property color bgColor: Appearance.colors.colPrimaryContainer
         property color shapeColor: Appearance.colors.colPrimary
@@ -68,11 +127,25 @@ AbstractBackgroundWidget {
                 color: Appearance.colors.colOnPrimaryContainer
             }
 
-            StyledText {
-                text: statCard.label
-                font.pixelSize: Appearance.font.pixelSize.small
-                color: Appearance.colors.colOnPrimaryContainer
-                opacity: 0.6
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 4
+                StyledText {
+                    Layout.fillWidth: true
+                    text: statCard.label
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    color: Appearance.colors.colOnPrimaryContainer
+                    opacity: 0.6
+                }
+                TrendIndicator {
+                    Layout.preferredWidth: 42
+                    Layout.preferredHeight: 16
+                    Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                    history: statCard.history
+                    color: statCard.shapeColor
+                    opacity: 0.75
+                    visible: statCard.history.length > 0
+                }
             }
         }
     }
@@ -83,20 +156,26 @@ AbstractBackgroundWidget {
         rows: root.isVertical ? 3 : 1
         spacing: root.cardSpacing
 
-        Behavior on columns {
-            NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
+        move: Transition {
+            NumberAnimation {
+                properties: "x,y"
+                duration: Config.options.appearance.reducedMotion ? 0 : 180
+                easing.type: Easing.OutCubic
+            }
         }
 
         StatCard {
             icon: "planner_review"
             value: Math.round(ResourceUsage.cpuUsage * 100) + "%"
             label: "CPU"
+            history: ResourceUsage.cpuUsageHistory
             shape: MaterialShape.Shape.Gem
         }
         StatCard {
             icon: "memory"
             value: Math.round(ResourceUsage.memoryUsedPercentage * 100) + "%"
             label: "RAM"
+            history: ResourceUsage.memoryUsageHistory
             shape: MaterialShape.Shape.Cookie4Sided
             bgColor: Appearance.colors.colSecondaryContainer
             shapeColor: Appearance.colors.colSecondary
@@ -107,6 +186,7 @@ AbstractBackgroundWidget {
                 ? Math.round(Battery.percentage * 100) + "%"
                 : Math.round(ResourceUsage.diskUsedPercentage * 100) + "%"
             label: root.hasBattery ? "Battery" : "Disk"
+            history: root.hasBattery ? [] : ResourceUsage.diskUsageHistory
             shape: MaterialShape.Shape.Cookie12Sided
             bgColor: Appearance.colors.colTertiaryContainer
             shapeColor: Appearance.colors.colTertiary

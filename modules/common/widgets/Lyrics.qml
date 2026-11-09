@@ -18,6 +18,7 @@ Item {
     property real fontScale: 1.0
     property bool animateTransitions: false
     property real lineSpacing: 6
+    readonly property bool karaokeEnabled: Config.options.media.karaokeAnimation && !Config.options.appearance.reducedMotion
 
     implicitWidth: 200
     implicitHeight: 200
@@ -71,8 +72,15 @@ Item {
                     Layout.fillWidth: true
                     horizontalAlignment: root.textAlignment
                     wrapMode: Text.WordWrap
-                    text: LyricsService.slots[index] ?? ""
                     readonly property int dist: Math.abs(index - LyricsService.before)
+                    readonly property string sourceLineText: LyricsService.slots[index] ?? ""
+                    text: {
+                        if (index === LyricsService.before && root.karaokeEnabled)
+                            return LyricsService.karaokeMarkup(root.activeColor, root.textColor)
+                        return sourceLineText
+                    }
+                    textFormat: index === LyricsService.before && root.karaokeEnabled ? Text.StyledText : Text.PlainText
+                    Accessible.name: sourceLineText
                     font.pixelSize: {
                         if (dist === 0) return Appearance.font.pixelSize.normal * root.fontScale
                         if (dist === 1) return Appearance.font.pixelSize.small * root.fontScale
@@ -86,7 +94,7 @@ Item {
                     }
                     color: dist === 0 ? root.activeColor : root.textColor
                     transform: Translate { id: lineSlide }
-                    onTextChanged: {
+                    onSourceLineTextChanged: {
                         if (root.animateTransitions) slideAnim.restart();
                     }
                     SequentialAnimation {

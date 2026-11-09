@@ -83,6 +83,30 @@ AbstractBackgroundWidget {
             }
         }
 
+        Rectangle {
+            id: offlineBadge
+            anchors {
+                top: parent.top
+                left: parent.left
+                margins: 8
+            }
+            z: 2
+            visible: Weather.offline && Weather.lastSuccessfulFetchMs > 0
+            width: offlineLabel.implicitWidth + 12
+            height: 22
+            radius: Appearance.rounding?.small ?? 8
+            color: ColorUtils.transparentize(Appearance.colors.colLayer0, 0.12)
+
+            StyledText {
+                id: offlineLabel
+                anchors.centerIn: parent
+                text: Translation.tr("Stale · %1 old").arg(Weather.staleAge)
+                font.pixelSize: Appearance.font.pixelSize.smaller
+                font.weight: Font.DemiBold
+                color: Appearance.colors.colOnPrimaryContainer
+            }
+        }
+
         // 1x1 
         Component {
             id: oneByOneContent

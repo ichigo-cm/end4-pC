@@ -64,23 +64,50 @@ AbstractBackgroundWidget {
     readonly property bool needsCover: isRing || useCoverColors
     readonly property string artFilePath: `${Directories.coverArt}/${Qt.md5(artUrl)}`
     property bool coverDownloaded: false
+    property int artRequestVersion: 0
     readonly property string coverUrl: {
         if (!root.needsCover || root.artUrl.length === 0) return "";
-        if (root.artUrl.startsWith("file://")) return root.artUrl;
+        if (root.artUrl.startsWith("data:") || root.artUrl.startsWith("file:/")) return root.artUrl;
+        if (root.artUrl.startsWith("/")) return "file://" + root.artUrl;
         return root.coverDownloaded ? Qt.resolvedUrl(root.artFilePath) : "";
     }
 
     onArtFilePathChanged: fetchCover()
     onNeedsCoverChanged: fetchCover()
     function fetchCover() {
+        root.artRequestVersion += 1;
         root.coverDownloaded = false;
-        if (!root.needsCover || root.artUrl.length === 0 || root.artUrl.startsWith("file://")) return;
-        coverDownloader.command = ["bash", "-c", '[ -f "$1" ] || curl -sSL "$2" -o "$1"', "_", root.artFilePath, root.artUrl];
+        if (!root.needsCover || root.artUrl.length === 0 || root.artUrl.startsWith("data:") || root.artUrl.startsWith("file:/") || root.artUrl.startsWith("/")) return;
+        if (!root.artUrl.startsWith("http://") && !root.artUrl.startsWith("https://")) return;
+        if (coverDownloader.running) return;
+        coverDownloader.artFilePath = root.artFilePath;
+        coverDownloader.targetFile = root.artUrl;
+        coverDownloader.requestVersion = root.artRequestVersion;
         coverDownloader.running = true;
     }
     Process {
         id: coverDownloader
-        onExited: root.coverDownloaded = true
+        property string artFilePath: root.artFilePath
+        property string targetFile: root.artUrl
+        property int requestVersion: 0
+        command: ["bash", "-c", `
+            if [ -f "$1" ]; then exit 0; fi
+            tmp=$(mktemp -- "$1.part.XXXXXX") || exit 1
+            if curl --fail --location --silent --show-error --connect-timeout 5 --max-time 20 --max-filesize 10485760 --proto "=http,https" --proto-redir "=http,https" -o "$tmp" -- "$2" &&
+                mv -f -- "$tmp" "$1"; then
+                :
+            else
+                rm -f -- "$tmp"
+                exit 1
+            fi
+        `, "_", artFilePath, targetFile]
+        onExited: (exitCode, exitStatus) => {
+            if (requestVersion !== root.artRequestVersion || targetFile !== root.artUrl || artFilePath !== root.artFilePath) {
+                Qt.callLater(() => root.fetchCover())
+                return
+            }
+            root.coverDownloaded = exitCode === 0
+        }
     }
     ColorQuantizer {
         id: coverQuantizer

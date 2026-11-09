@@ -37,6 +37,101 @@ BLACKLIST_FILTER='del(._presetMeta)
 SHARE_FILTER='with_entries(select(.key as $k | ["appearance","background","bar","calendar","crosshair","dock","interactions","launcher","light","lock","media","notifications","osd","osk","overlay","overview","panelFamily","profile","regionSelector","resources","settings","sidebar","tray","wallpaperSelector","windows","hyprland"] | index($k)))
   | if (.hyprland | type) == "object" then .hyprland |= with_entries(select(.key as $k | ["decoration","gaps","animations","general"] | index($k))) else . end'
 
+# External presets are appearance-only; never import executable app commands
+# or personal/device identity fields from a ZIP or gallery cache.
+EXTERNAL_FILTER='del(._presetMeta, .profile)
+  | walk(if type == "object" then with_entries(select(.key | test("(?i)(command|exec|executable|argv|shell|terminal|browser|file.?manager|editor|identity|username|user.?name|e.?mail|host.?name|machine.?id|device.?id|user.?id|author)"; "i") | not)) else . end)'
+
+valid_preset_name() {
+    local bytes
+    [[ -n "$1" && "$1" != "." && "$1" != ".." && "$1" != */* && "$1" != *\\* && "$1" != *[[:cntrl:]]* ]] || return 1
+    bytes=$(LC_ALL=C printf %s "$1" | wc -c) || return 1
+    [ "$bytes" -le 200 ]
+}
+
+error() {
+    echo "Error: $*" >&2
+    exit 1
+}
+
+# Validate the complete archive before extraction, then extract only regular
+# files beneath the destination with strict per-entry and aggregate limits.
+safe_extract_zip() {
+    python3 - "$1" "$2" <<'PY'
+import os
+import stat
+import sys
+import zipfile
+from pathlib import PurePosixPath
+
+archive, destination = sys.argv[1:]
+max_entries = 256
+max_file_size = 16 * 1024 * 1024
+max_total_size = 64 * 1024 * 1024
+max_ratio = 200
+
+try:
+    with zipfile.ZipFile(archive) as source:
+        entries = source.infolist()
+        if len(entries) > max_entries:
+            raise ValueError("archive has too many entries")
+        total = 0
+        seen = set()
+        for entry in entries:
+            name = entry.filename
+            path = PurePosixPath(name)
+            mode = entry.external_attr >> 16
+            components = name.rstrip("/").split("/")
+            if (not name or "\\" in name or name.startswith("/") or ":" in name
+                    or "\x00" in name or any(part in ("", ".", "..") for part in components)
+                    or path.is_absolute()):
+                raise ValueError("archive contains an unsafe path")
+            normalized = path.as_posix().rstrip("/")
+            if normalized in seen:
+                raise ValueError("archive contains duplicate paths")
+            seen.add(normalized)
+            if stat.S_ISLNK(mode):
+                raise ValueError("archive contains a symbolic link")
+            if entry.flag_bits & 1:
+                raise ValueError("encrypted archive entries are not supported")
+            if entry.is_dir():
+                continue
+            if stat.S_IFMT(mode) not in (0, stat.S_IFREG):
+                raise ValueError("archive contains a non-regular file")
+            if entry.file_size > max_file_size:
+                raise ValueError("archive entry exceeds the size limit")
+            total += entry.file_size
+            if total > max_total_size:
+                raise ValueError("archive exceeds the expanded size limit")
+            if entry.file_size and (entry.compress_size == 0 or entry.file_size > entry.compress_size * max_ratio):
+                raise ValueError("archive entry compression ratio is too high")
+
+        root = os.path.realpath(destination)
+        for entry in entries:
+            if entry.is_dir():
+                continue
+            target = os.path.realpath(os.path.join(root, *PurePosixPath(entry.filename).parts))
+            if os.path.commonpath((root, target)) != root:
+                raise ValueError("archive entry escapes extraction directory")
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            written = 0
+            with source.open(entry) as src, open(target, "xb") as dst:
+                while True:
+                    chunk = src.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    written += len(chunk)
+                    if written > max_file_size or written > entry.file_size:
+                        raise ValueError("archive entry expanded beyond its declared size")
+                    dst.write(chunk)
+            if written != entry.file_size:
+                raise ValueError("archive entry size did not match its declaration")
+except (OSError, ValueError, zipfile.BadZipFile, zipfile.LargeZipFile, RuntimeError) as exc:
+    print(f"Error: invalid preset archive: {exc}", file=sys.stderr)
+    sys.exit(1)
+PY
+}
+
 action="$1"
 shift
 
@@ -83,31 +178,39 @@ if [ "$action" = "--import-zip" ]; then
         echo "Error: zip not found: $zip_path" >&2
         exit 1
     fi
-    tmpdir=$(mktemp -d)
+    tmpdir=$(mktemp -d) || error "could not create temporary directory"
     trap 'rm -rf "$tmpdir"' EXIT
-    if command -v unzip >/dev/null 2>&1; then
-        unzip -q "$zip_path" -d "$tmpdir"
-    else
-        python3 -c "import zipfile, sys; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "$zip_path" "$tmpdir"
+    safe_extract_zip "$zip_path" "$tmpdir" || exit 1
+    # A preset archive must have one unambiguous settings payload.
+    mapfile -d '' json_files < <(find "$tmpdir" -maxdepth 4 -type f -name "*.json" ! -name "meta.json" -print0)
+    if [ "${#json_files[@]}" -ne 1 ]; then
+        error "archive must contain exactly one preset json"
     fi
-    # Find json (first *.json not meta.json)
-    json_file=$(find "$tmpdir" -maxdepth 4 -name "*.json" ! -name "meta.json" | head -n1)
-    if [ -z "$json_file" ]; then
-        echo "Error: no preset json in zip" >&2
-        exit 1
-    fi
+    json_file="${json_files[0]}"
     base=$(basename "$json_file" .json)
+    if ! valid_preset_name "$base"; then
+        error "invalid preset filename in archive"
+    fi
     # Collect assets from the same folder as the json (images etc, exclude json/meta).
     # Anchoring to the json dir (instead of the zip root) supports flat zips as well
     # as folder-wrapped ones (e.g. Blapples' assets/ layout).
     json_dir=$(dirname "$json_file")
-    asset_files=$(find "$json_dir" -maxdepth 1 -type f ! -name "*.json" ! -name "meta.json" -exec basename {} \; | jq -R . | jq -s .)
+    asset_files=$(find "$json_dir" -maxdepth 1 -type f ! -name "*.json" ! -name "meta.json" -exec basename {} \; | jq -R . | jq -s .) || error "could not list preset assets"
     asset_cache="$IMPORTED_PRESETS_DIR/assets/$base"
-    mkdir -p "$asset_cache"
-    # Copy assets to cache (plug-and-play like online presets)
-    find "$json_dir" -maxdepth 1 -type f ! -name "*.json" ! -name "meta.json" -exec cp -L {} "$asset_cache/" \; 2>/dev/null || true
+    mkdir -p "$IMPORTED_PRESETS_DIR/assets" || error "could not create imported asset directory"
+    asset_stage=$(mktemp -d "$IMPORTED_PRESETS_DIR/assets/.${base}.XXXXXX") || error "could not stage imported assets"
+    if ! find "$json_dir" -maxdepth 1 -type f ! -name "*.json" ! -name "meta.json" -exec cp -L -- {} "$asset_stage/" \; ; then
+        rm -rf "$asset_stage"
+        error "could not copy preset assets"
+    fi
     # Rewrite json paths to point to cached assets (reuse online jqFilter Profile.qml:250)
-    jq --arg dir "$asset_cache" --argjson files "$asset_files" '
+    staged_json=$(mktemp "$IMPORTED_PRESETS_DIR/.${base}.XXXXXX") || { rm -rf "$asset_stage"; error "could not stage preset settings"; }
+    rewritten_json=$(mktemp "$IMPORTED_PRESETS_DIR/.${base}.rewritten.XXXXXX") || { rm -rf "$asset_stage" "$staged_json"; error "could not stage rewritten preset settings"; }
+    if ! jq -s -e 'length == 1 and (.[0] | type == "object")' "$json_file" >/dev/null; then
+        rm -rf "$asset_stage" "$staged_json" "$rewritten_json"
+        error "preset settings must be a JSON object"
+    fi
+    if ! jq --arg dir "$asset_cache" --argjson files "$asset_files" '
       $files as $files | walk(if type == "string" then ((split("/") | last) as $base | if ($files | index($base)) then ($dir + "/" + $base) else . end) else . end)
       | if (.background.collage.tree? // null) != null then
           .background.collage.tree |= (try (fromjson
@@ -117,7 +220,36 @@ if [ "$action" = "--import-zip" ]; then
             | tojson) catch .)
         else . end
       | del(._presetMeta) | ._presetMeta.source = "imported"
-    ' "$json_file" | jq "$BLACKLIST_FILTER" > "$IMPORTED_PRESETS_DIR/${base}.json"
+    ' "$json_file" > "$rewritten_json"; then
+        rm -rf "$asset_stage" "$staged_json" "$rewritten_json"
+        error "could not rewrite preset asset paths"
+    fi
+    if ! jq "$BLACKLIST_FILTER | $SHARE_FILTER | $EXTERNAL_FILTER | ._presetMeta.source = \"imported\"" "$rewritten_json" > "$staged_json"; then
+        rm -rf "$asset_stage" "$staged_json" "$rewritten_json"
+        error "could not validate preset settings"
+    fi
+    asset_backup_parent=""
+    asset_backup=""
+    asset_backup_parent=$(mktemp -d "$IMPORTED_PRESETS_DIR/assets/.${base}.backup.XXXXXX") || { rm -rf "$asset_stage" "$staged_json" "$rewritten_json"; error "could not stage existing imported assets"; }
+    if [ -e "$asset_cache" ] || [ -L "$asset_cache" ]; then
+        asset_backup="$asset_backup_parent/old"
+        if ! mv -- "$asset_cache" "$asset_backup"; then
+            rm -rf "$asset_backup_parent" "$asset_stage" "$staged_json" "$rewritten_json"
+            error "could not preserve existing imported assets"
+        fi
+    fi
+    if ! mv -- "$asset_stage" "$asset_cache"; then
+        if [ -n "$asset_backup" ] && [ -e "$asset_backup" ]; then mv -- "$asset_backup" "$asset_cache" || echo "Error: could not restore existing imported assets" >&2; fi
+        rm -rf "$asset_backup_parent" "$asset_stage" "$staged_json" "$rewritten_json"
+        error "could not publish preset assets"
+    fi
+    if ! mv "$staged_json" "$IMPORTED_PRESETS_DIR/${base}.json"; then
+        rm -rf "$asset_cache"
+        if [ -n "$asset_backup" ] && [ -e "$asset_backup" ]; then mv -- "$asset_backup" "$asset_cache" || echo "Error: could not restore existing imported assets" >&2; fi
+        rm -rf "$asset_backup_parent" "$staged_json" "$rewritten_json"
+        error "could not publish imported preset"
+    fi
+    rm -rf "$asset_backup_parent" "$rewritten_json"
     echo "Imported $base to $IMPORTED_PRESETS_DIR/${base}.json with assets in $asset_cache"
     trap - EXIT
     rm -rf "$tmpdir"
@@ -127,6 +259,10 @@ fi
 if [ -z "$name" ]; then
     echo "Error: missing preset name" >&2
     exit 1
+fi
+
+if ! valid_preset_name "$name"; then
+    error "invalid preset name: $name"
 fi
 
 if $imported; then
@@ -139,12 +275,20 @@ fi
 
 case "$action" in
     --save)
-        jq "$BLACKLIST_FILTER" "$CONFIG_FILE" > "$PRESETS_DIR/${name}.json"
-        if [ -n "$description" ]; then
-            jq --arg desc "$description" '._presetMeta = {"description": $desc}' \
-                "$PRESETS_DIR/${name}.json" > "$PRESETS_DIR/${name}.json.tmp" \
-                && mv "$PRESETS_DIR/${name}.json.tmp" "$PRESETS_DIR/${name}.json"
+        staged_json=$(mktemp "$PRESETS_DIR/.${name}.XXXXXX") || error "could not stage preset"
+        if ! jq "$BLACKLIST_FILTER" "$CONFIG_FILE" > "$staged_json"; then
+            rm -f "$staged_json"
+            error "could not save preset settings"
         fi
+        if [ -n "$description" ]; then
+            if ! jq --arg desc "$description" '._presetMeta = {"description": $desc}' \
+                "$staged_json" > "$staged_json.meta"; then
+                rm -f "$staged_json" "$staged_json.meta"
+                error "could not write preset description"
+            fi
+            mv "$staged_json.meta" "$staged_json" || { rm -f "$staged_json"; error "could not finalize preset"; }
+        fi
+        mv "$staged_json" "$PRESETS_DIR/${name}.json" || { rm -f "$staged_json"; error "could not publish preset"; }
         ;;
     --remove)
         rm -f "$PRESETS_DIR/${name}.json"
@@ -156,8 +300,8 @@ case "$action" in
         ;;
     --rename)
         new_name="${description//[[:space:]]/_}"
-        if [ -z "$new_name" ] || [ ! -f "$PRESETS_DIR/${name}.json" ] || [ -e "$PRESETS_DIR/${new_name}.json" ]; then
-            exit 1
+        if ! valid_preset_name "$new_name" || [ ! -f "$PRESETS_DIR/${name}.json" ] || [ -e "$PRESETS_DIR/${new_name}.json" ]; then
+            error "invalid or unavailable new preset name"
         fi
         mv "$PRESETS_DIR/${name}.json" "$PRESETS_DIR/${new_name}.json"
         echo "$new_name"
@@ -181,7 +325,21 @@ case "$action" in
             echo "Error: preset not found: $name" >&2
             exit 1
         fi
-        python3 "$SCRIPT_DIR/preset_install.py" "$preset_file" "$PRESETS_DIR/assets/$name" "$LOCAL_PRESETS_DIR" "${origin:-$($imported && echo imported || echo gallery)}" "${display:-$name}"
+        install_input="$preset_file"
+        if $online || $imported; then
+            install_input=$(mktemp) || error "could not stage external preset"
+            if ! jq "$BLACKLIST_FILTER | $SHARE_FILTER | $EXTERNAL_FILTER" "$preset_file" > "$install_input"; then
+                rm -f "$install_input"
+                error "could not validate external preset settings"
+            fi
+        fi
+        if python3 "$SCRIPT_DIR/preset_install.py" "$install_input" "$PRESETS_DIR/assets/$name" "$LOCAL_PRESETS_DIR" "${origin:-$($imported && echo imported || echo gallery)}" "${display:-$name}"; then
+            install_status=0
+        else
+            install_status=$?
+        fi
+        [ "$install_input" = "$preset_file" ] || rm -f "$install_input"
+        [ "$install_status" -eq 0 ] || error "could not install preset"
         ;;
     --export-zip)
         preset_file="$PRESETS_DIR/${name}.json"

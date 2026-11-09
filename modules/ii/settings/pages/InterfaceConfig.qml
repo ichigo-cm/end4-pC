@@ -170,6 +170,20 @@ ContentPage {
         }
 
         ContentSection {
+            icon: "motion_photos_off"
+            shape: MaterialShape.Shape.Cookie6Sided
+            title: Translation.tr("Motion")
+            GroupedList {
+                ConfigSwitch {
+                    buttonIcon: "motion_photos_off"
+                    text: Translation.tr("Reduce motion")
+                    checked: Config.options.appearance.reducedMotion
+                    onCheckedChanged: { Config.options.appearance.reducedMotion = checked }
+                }
+            }
+        }
+
+        ContentSection {
             icon: "settings"
             shape: MaterialShape.Shape.SoftBurst
             title: Translation.tr("Settings Panel")

@@ -339,7 +339,12 @@ Singleton {
 
     Process {
         id: importZipProc
-        onExited: root.refreshImported()
+        stderr: StdioCollector { id: importZipErr }
+        onExited: code => {
+            root.refreshImported()
+            if (code !== 0)
+                Quickshell.execDetached(["notify-send", "-a", "Presets", Translation.tr("Import failed"), importZipErr.text.trim() || Translation.tr("Could not import the preset archive")])
+        }
     }
 
     function save(rawInput) {

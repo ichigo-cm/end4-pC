@@ -35,17 +35,32 @@ ListView {
     }
 
     add: Transition {
-        animations: animateAppearance ? [
+        animations: !animateAppearance ? [] : (Config.options.appearance.reducedMotion ? [
+            Appearance?.animation.elementMoveFast.numberAnimation.createObject(this, {
+                property: "opacity",
+                from: 0,
+                to: 1,
+            }),
+        ] : [
             Appearance?.animation.elementMove.numberAnimation.createObject(this, {
                 properties: popin ? "opacity,scale" : "opacity",
                 from: 0,
                 to: 1,
             }),
-        ] : []
+        ])
     }
 
     addDisplaced: Transition {
-        animations: animateAppearance ? [
+        animations: !animateAppearance ? [] : (Config.options.appearance.reducedMotion ? [
+            Appearance?.animation.elementMove.numberAnimation.createObject(this, {
+                property: "y",
+                duration: 0,
+            }),
+            Appearance?.animation.elementMoveFast.numberAnimation.createObject(this, {
+                property: "opacity",
+                to: 1,
+            }),
+        ] : [
             Appearance?.animation.elementMove.numberAnimation.createObject(this, {
                 property: "y",
             }),
@@ -53,11 +68,16 @@ ListView {
                 properties: popin ? "opacity,scale" : "opacity",
                 to: 1,
             }),
-        ] : []
+        ])
     }
     
     displaced: Transition {
-        animations: root.animateMovement ? [
+        animations: !root.animateMovement ? [] : (Config.options.appearance.reducedMotion ? [
+            Appearance?.animation.elementMove.numberAnimation.createObject(this, {
+                property: "y",
+                duration: 0,
+            }),
+        ] : [
             Appearance?.animation.elementMove.numberAnimation.createObject(this, {
                 property: "y",
             }),
@@ -65,11 +85,16 @@ ListView {
                 properties: "opacity,scale",
                 to: 1,
             }),
-        ] : []
+        ])
     }
 
     move: Transition {
-        animations: root.animateMovement ? [
+        animations: !root.animateMovement ? [] : (Config.options.appearance.reducedMotion ? [
+            Appearance?.animation.elementMove.numberAnimation.createObject(this, {
+                property: "y",
+                duration: 0,
+            }),
+        ] : [
             Appearance?.animation.elementMove.numberAnimation.createObject(this, {
                 property: "y",
             }),
@@ -77,10 +102,15 @@ ListView {
                 properties: "opacity,scale",
                 to: 1,
             }),
-        ] : []
+        ])
     }
     moveDisplaced: Transition {
-        animations: root.animateMovement ? [
+        animations: !root.animateMovement ? [] : (Config.options.appearance.reducedMotion ? [
+            Appearance?.animation.elementMove.numberAnimation.createObject(this, {
+                property: "y",
+                duration: 0,
+            }),
+        ] : [
             Appearance?.animation.elementMove.numberAnimation.createObject(this, {
                 property: "y",
             }),
@@ -88,11 +118,16 @@ ListView {
                 properties: "opacity,scale",
                 to: 1,
             }),
-        ] : []
+        ])
     }
 
     remove: Transition {
-        animations: animateAppearance ? [
+        animations: !animateAppearance ? [] : (Config.options.appearance.reducedMotion ? [
+            Appearance?.animation.elementMoveFast.numberAnimation.createObject(this, {
+                property: "opacity",
+                to: 0,
+            }),
+        ] : [
             Appearance?.animation.elementMove.numberAnimation.createObject(this, {
                 property: "x",
                 to: root.width + root.removeOvershoot,
@@ -101,12 +136,17 @@ ListView {
                 property: "opacity",
                 to: 0,
             })
-        ] : []
+        ])
     }
 
     // This is movement when something is removed, not removing animation!
     removeDisplaced: Transition { 
-        animations: animateAppearance ? [
+        animations: !animateAppearance ? [] : (Config.options.appearance.reducedMotion ? [
+            Appearance?.animation.elementMove.numberAnimation.createObject(this, {
+                property: "y",
+                duration: 0,
+            }),
+        ] : [
             Appearance?.animation.elementMove.numberAnimation.createObject(this, {
                 property: "y",
             }),
@@ -114,6 +154,6 @@ ListView {
                 properties: "opacity,scale",
                 to: 1,
             }),
-        ] : []
+        ])
     }
 }

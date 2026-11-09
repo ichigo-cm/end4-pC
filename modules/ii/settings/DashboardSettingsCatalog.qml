@@ -63,6 +63,11 @@ QtObject {
         return custom[key] ?? hyprControls[key] ?? null;
     }
 
+    function clampResourceHistoryLength(value) {
+        const numericValue = Number(value);
+        return Number.isFinite(numericValue) ? Math.max(1, Math.min(600, Math.round(numericValue))) : 60;
+    }
+
     readonly property var hyprControls: ({
         "hyprland:opt:dwindle:preserve_split": hyprToggle("dwindle:preserve_split"),
         "hyprland:opt:dwindle:smart_split": hyprToggle("dwindle:smart_split"),
@@ -112,6 +117,7 @@ QtObject {
     readonly property var custom: ({
         "bar:Claude Code": { type: "switch", get: () => Config.options.bar.aiUsage.claudeEnabled, set: v => { Config.options.bar.aiUsage.claudeEnabled = v; } },
         "bar:Codex": { type: "switch", get: () => Config.options.bar.aiUsage.codexEnabled, set: v => { Config.options.bar.aiUsage.codexEnabled = v; } },
+        "resources:History points": { type: "spin", get: () => clampResourceHistoryLength(Config.options.resources.historyLength), set: v => { Config.options.resources.historyLength = clampResourceHistoryLength(v); }, from: 1, to: 600, stepSize: 1 },
         "bar:Bar style": { type: "select", get: () => Config.options.bar.cornerStyle, set: v => { Config.options.bar.cornerStyle = v; }, options: [{ displayName: Translation.tr("Hug"), icon: "line_curve", value: 0 }, { displayName: Translation.tr("Split Hug"), icon: "splitscreen", value: 6 }, { displayName: Translation.tr("Float"), icon: "view_day", value: 1 }, { displayName: Translation.tr("Islands"), icon: "crop_3_2", value: 2 }, { displayName: Translation.tr("M3"), icon: "interests", value: 3 }, { displayName: Translation.tr("M3 Hug"), icon: "category", value: 4 }, { displayName: Translation.tr("Panel"), icon: "toolbar", value: 5 }] },
         "bar:Group color": { type: "select", get: () => Config.options.bar.groupColor, set: v => { Config.options.bar.groupColor = v; }, get options() { return ["primaryContainer", "secondaryContainer", "tertiaryContainer", "layer1", "layer0"].map(name => ({ value: name, color: roleColor(name) })); } },
         "interface:Football/Goal file": { type: "text", get: () => Config.options.sidebar.football.goalSoundPath, set: v => { Config.options.sidebar.football.goalSoundPath = v; } },
@@ -124,6 +130,7 @@ QtObject {
         "bar:Icon color": { type: "select", get: () => Config.options.custom.iconColor, set: v => { Config.options.custom.iconColor = v; }, get options() { return ["onLayer0", "primary", "secondary", "tertiary", "onPrimaryContainer", "onSecondaryContainer", "onTertiaryContainer"].map(name => ({ value: name, color: roleColor(name) })); } },
         "bar:Icons folder": { type: "text", get: () => Config.options.custom.iconsPath, set: v => { Config.options.custom.iconsPath = v; } },
         "bar:Preferred player": { type: "text", get: () => Config.options.bar.media.preferredPlayer, set: v => { Config.options.bar.media.preferredPlayer = v; } },
+        "media:Karaoke lyrics": { type: "switch", get: () => Config.options.media.karaokeAnimation, set: v => { Config.options.media.karaokeAnimation = v; } },
         "hyprland:Active border color": { type: "select", get: () => Config.options.hyprland.general.borderColor.activeRole, set: v => { Config.options.hyprland.general.borderColor.activeRole = v; HyprlandConfig.applyBorderColors(); }, get options() { return ["primary", "secondary", "tertiary", "primaryContainer", "secondaryContainer", "tertiaryContainer", "layer0Border"].map(name => ({ value: name, color: roleColor(name) })); } },
         "hyprland:Active border opacity": { type: "spin", get: () => Math.round(Config.options.hyprland.general.borderColor.activeOpacity * 100), set: v => { Config.options.hyprland.general.borderColor.activeOpacity = v / 100.0; HyprlandConfig.applyBorderColors(); }, from: 0, to: 100, stepSize: 5 },
         "hyprland:Inactive border color": { type: "select", get: () => Config.options.hyprland.general.borderColor.inactiveRole, set: v => { Config.options.hyprland.general.borderColor.inactiveRole = v; HyprlandConfig.applyBorderColors(); }, get options() { return ["primary", "secondary", "tertiary", "primaryContainer", "secondaryContainer", "tertiaryContainer", "layer0Border"].map(name => ({ value: name, color: roleColor(name) })); } },
@@ -321,7 +328,8 @@ QtObject {
                 { type: "toggle", key: "bar:Swap", title: Translation.tr("Swap"), icon: "swap_horiz" },
                 { type: "toggle", key: "bar:Show Percentage", title: Translation.tr("Show percentage"), icon: "percent" },
                 { type: "select", key: "bar:Resources/Style", title: Translation.tr("Style"), icon: "monitoring" },
-                { type: "spin", key: "bar:Polling interval (ms)", title: Translation.tr("Polling interval (ms)"), icon: "av_timer" }
+                { type: "spin", key: "bar:Polling interval (ms)", title: Translation.tr("Polling interval (ms)"), icon: "av_timer" },
+                { type: "spin", key: "resources:History points", title: Translation.tr("Resource graph history (samples)"), icon: "show_chart", kw: "recent CPU memory RAM swap disk readings retained shown resource graph history trend buffer length" }
             ]
         },
         {
@@ -356,6 +364,7 @@ QtObject {
             page: Translation.tr("Interface"), title: Translation.tr("Left Sidebar"), icon: "splitscreen_left", cards: [
                 { type: "toggle", key: "interface:Left Sidebar/Enable", title: Translation.tr("Media player"), icon: "music_note" },
                 { type: "toggle", key: "interface:Follow Album Colors", title: Translation.tr("Album colors"), icon: "palette" },
+                { type: "toggle", key: "media:Karaoke lyrics", title: Translation.tr("Karaoke lyrics"), icon: "lyrics", kw: "letter by letter synced lyric highlight animation" },
                 { type: "toggle", key: "interface:Enable Translator", title: Translation.tr("Translator"), icon: "translate" },
                 { type: "toggle", key: "interface:Enable Football", title: Translation.tr("Football"), icon: "sports_soccer", kw: "soccer parlay fixtures corners goals stats", action: { icon: "settings", tip: Translation.tr("Football sounds and alerts settings"), group: Translation.tr("General"), section: Translation.tr("Sounds") } },
                 { type: "select", key: "interface:AI policy", title: Translation.tr("AI"), icon: "smart_toy" },

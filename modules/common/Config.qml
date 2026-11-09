@@ -109,6 +109,7 @@ Singleton {
                 property string uiBackground: "themed"
                 property bool extraBackgroundTint: true
                 property int fakeScreenRounding: 2 // 0: None | 1: Always | 2: When not fullscreen
+                property bool reducedMotion: false
                 property JsonObject icons: JsonObject {
                     property string theme: "Tela"
                     property bool followScheme: true
@@ -790,6 +791,7 @@ Singleton {
             property JsonObject media: JsonObject {
                 // Attempt to remove dupes (the aggregator playerctl one and browsers' native ones when there's plasma browser integration)
                 property bool filterDuplicatePlayers: true
+                property bool karaokeAnimation: true
             }
 
             property JsonObject networking: JsonObject {
@@ -855,6 +857,7 @@ Singleton {
 
             property JsonObject resources: JsonObject {
                 property int updateInterval: 3000
+                // Recent CPU, memory, swap, and disk samples retained for resource graphs.
                 property int historyLength: 60
             }
 

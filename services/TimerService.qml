@@ -27,8 +27,8 @@ Singleton {
     property int pomodoroCycle: Persistent.states.timer.pomodoro.cycle
 
     property bool stopwatchRunning: Persistent.states.timer.stopwatch.running
-    property int stopwatchTime: 0
-    property int stopwatchStart: Persistent.states.timer.stopwatch.start
+    property real stopwatchTime: 0
+    property real stopwatchStart: Persistent.states.timer.stopwatch.start
     property var stopwatchLaps: Persistent.states.timer.stopwatch.laps
 
     // Countdown
@@ -39,8 +39,26 @@ Singleton {
 
     // General
     Component.onCompleted: {
-        if (!stopwatchRunning)
-            stopwatchReset();
+        if (stopwatchRunning) {
+            const savedStart = Number(stopwatchStart);
+            const currentTicks = getCurrentTimeIn10ms();
+            if (!Number.isFinite(savedStart) || savedStart < currentTicks / 2 || savedStart > currentTicks) {
+                Persistent.states.timer.stopwatch.running = false;
+                Persistent.states.timer.stopwatch.start = 0;
+                Persistent.states.timer.stopwatch.elapsed = 0;
+                stopwatchTime = 0;
+            } else {
+                refreshStopwatch();
+            }
+        } else {
+            const savedTime = Number(Persistent.states.timer.stopwatch.elapsed);
+            if (Number.isFinite(savedTime) && savedTime >= 0 && savedTime < getCurrentTimeIn10ms() / 2) {
+                stopwatchTime = Math.floor(savedTime);
+            } else {
+                stopwatchTime = 0;
+            }
+            Persistent.states.timer.stopwatch.start = 0;
+        }
         if (!countdownRunning)
             countdownSecondsLeft = countdownDuration;
     }
@@ -58,6 +76,15 @@ Singleton {
         const m = Math.floor(s / 60);
         const sec = s % 60;
         return `${m}:${sec.toString().padStart(2, "0")}`;
+    }
+
+    function formatStopwatchTime(totalCentiseconds) {
+        const centiseconds = Math.max(0, Math.floor(totalCentiseconds));
+        const totalSeconds = Math.floor(centiseconds / 100);
+        const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
+        const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+        const fraction = (centiseconds % 100).toString().padStart(2, "0");
+        return `${minutes}:${seconds}.${fraction}`;
     }
 
     // Pomodoro
@@ -117,7 +144,7 @@ Singleton {
 
     // Stopwatch
     function refreshStopwatch() {  // Stopwatch stores time in 10ms
-        stopwatchTime = getCurrentTimeIn10ms() - stopwatchStart;
+        stopwatchTime = Math.max(0, getCurrentTimeIn10ms() - stopwatchStart);
     }
 
     Timer {
@@ -136,23 +163,32 @@ Singleton {
     }
 
     function stopwatchPause() {
+        refreshStopwatch();
         Persistent.states.timer.stopwatch.running = false;
+        Persistent.states.timer.stopwatch.start = 0;
+        Persistent.states.timer.stopwatch.elapsed = stopwatchTime;
     }
 
     function stopwatchResume() {
-        if (stopwatchTime === 0) Persistent.states.timer.stopwatch.laps = [];
-        Persistent.states.timer.stopwatch.running = true;
         Persistent.states.timer.stopwatch.start = getCurrentTimeIn10ms() - stopwatchTime;
+        Persistent.states.timer.stopwatch.elapsed = stopwatchTime;
+        Persistent.states.timer.stopwatch.running = true;
     }
 
     function stopwatchReset() {
         stopwatchTime = 0;
         Persistent.states.timer.stopwatch.laps = [];
+        Persistent.states.timer.stopwatch.start = 0;
+        Persistent.states.timer.stopwatch.elapsed = 0;
         Persistent.states.timer.stopwatch.running = false;
     }
 
     function stopwatchRecordLap() {
-        Persistent.states.timer.stopwatch.laps.push(stopwatchTime);
+        if (stopwatchRunning)
+            refreshStopwatch();
+        const laps = Array.from(stopwatchLaps ?? []);
+        laps.push(stopwatchTime);
+        Persistent.states.timer.stopwatch.laps = laps;
     }
 
     // Countdown

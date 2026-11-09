@@ -67,6 +67,17 @@ Item {
             }
         }
         NotificationStatusButton {
+            Layout.fillWidth: false
+            buttonIcon: Notifications.focusSessionActive ? "stop" : "timer"
+            buttonText: Notifications.focusSessionActive
+                ? Translation.tr("Stop %1m").arg(Notifications.focusSessionRemainingMinutes)
+                : Translation.tr("Focus 25m")
+            toggled: Notifications.focusSessionActive
+            onClicked: () => {
+                Notifications.toggleFocusSession();
+            }
+        }
+        NotificationStatusButton {
             enabled: false
             Layout.fillWidth: true
             buttonText: Translation.tr("%1 notifications").arg(Notifications.list.length)

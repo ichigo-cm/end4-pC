@@ -83,8 +83,51 @@ Singleton {
     property var filePath: Directories.notificationsPath
     property list<Notif> list: []
     property var popupList: list.filter((notif) => notif.popup);
-    property bool popupInhibited: (GlobalStates?.sidebarRightOpen ?? false) || silent
+    property bool popupInhibited: (GlobalStates?.sidebarRightOpen ?? false) || silent || focusSessionActive
+    readonly property int focusSessionDurationMinutes: 25
+    property bool focusSessionActive: false
+    property int focusSessionRemainingMinutes: 0
+    property double focusSessionEndTime: 0
     property var latestTimeForApp: ({})
+
+    Timer {
+        id: focusSessionTimer
+        interval: 1000
+        running: root.focusSessionActive
+        repeat: true
+        onTriggered: root.refreshFocusSession()
+    }
+
+    function startFocusSession() {
+        root.focusSessionEndTime = Date.now() + root.focusSessionDurationMinutes * 60 * 1000;
+        root.focusSessionRemainingMinutes = root.focusSessionDurationMinutes;
+        root.focusSessionActive = true;
+        root.timeoutAll();
+    }
+
+    function stopFocusSession() {
+        root.focusSessionActive = false;
+        root.focusSessionEndTime = 0;
+        root.focusSessionRemainingMinutes = 0;
+    }
+
+    function toggleFocusSession() {
+        if (root.focusSessionActive)
+            root.stopFocusSession();
+        else
+            root.startFocusSession();
+    }
+
+    function refreshFocusSession() {
+        if (!root.focusSessionActive) return;
+        const millisecondsLeft = root.focusSessionEndTime - Date.now();
+        if (millisecondsLeft <= 0) {
+            root.stopFocusSession();
+            return;
+        }
+        root.focusSessionRemainingMinutes = Math.ceil(millisecondsLeft / 60000);
+    }
+
     Component {
         id: notifComponent
         Notif {}

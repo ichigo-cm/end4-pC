@@ -19,6 +19,7 @@ LazyLoader {
     property bool closing: false
     active: root.shouldShow || root.closing
     onShouldShowChanged: if (!root.shouldShow && root.item) root.closing = true
+    readonly property bool reducedMotion: Config.options.appearance.reducedMotion
 
     readonly property bool barVertical: Config.options.bar.vertical
     readonly property string barEdge: {
@@ -286,8 +287,8 @@ LazyLoader {
                 id: bodyScale
                 origin.x: root.barEdge === "left" ? 0 : root.barEdge === "right" ? body.width : body.width / 2
                 origin.y: root.barEdge === "top" ? 0 : root.barEdge === "bottom" ? body.height : body.height / 2
-                xScale: root.morph ? (root.barVertical ? 0.01 : 1) : (root.barVertical ? 0.4 : 0.8)
-                yScale: root.morph ? (root.barVertical ? 1 : 0.01) : (root.barVertical ? 0.8 : 0.4)
+                xScale: root.reducedMotion ? 1 : (root.morph ? (root.barVertical ? 0.95 : 1) : 0.95)
+                yScale: root.reducedMotion ? 1 : (root.morph ? (root.barVertical ? 1 : 0.95) : 0.95)
             }
 
             StyledRectangularShadow {
@@ -344,8 +345,8 @@ LazyLoader {
                     opacity: 0
                     transform: Translate {
                         id: contentShift
-                        x: root.barEdge === "left" ? -16 : root.barEdge === "right" ? 16 : 0
-                        y: root.barEdge === "top" ? -16 : root.barEdge === "bottom" ? 16 : 0
+                        x: root.reducedMotion ? 0 : (root.barEdge === "left" ? -16 : root.barEdge === "right" ? 16 : 0)
+                        y: root.reducedMotion ? 0 : (root.barEdge === "top" ? -16 : root.barEdge === "bottom" ? 16 : 0)
                     }
                 }
 
@@ -366,7 +367,7 @@ LazyLoader {
                 target: bodyScale
                 property: root.barVertical ? "xScale" : "yScale"
                 to: 1
-                duration: 500
+                duration: root.reducedMotion ? 0 : 180
                 easing.type: Easing.BezierSpline
                 easing.bezierCurve: Appearance.animationCurves.expressiveFastSpatial
             }
@@ -374,7 +375,7 @@ LazyLoader {
                 target: bodyScale
                 property: root.barVertical ? "yScale" : "xScale"
                 to: 1
-                duration: Appearance.animationCurves.expressiveDefaultSpatialDuration
+                duration: root.reducedMotion ? 0 : 180
                 easing.type: Easing.BezierSpline
                 easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial
             }
@@ -382,20 +383,20 @@ LazyLoader {
                 target: body
                 property: "opacity"
                 to: 1
-                duration: Appearance.animationCurves.expressiveEffectsDuration
+                duration: 160
                 easing.type: Easing.BezierSpline
                 easing.bezierCurve: Appearance.animationCurves.expressiveEffects
             }
             SequentialAnimation {
                 PauseAnimation {
-                    duration: 90
+                    duration: root.reducedMotion ? 0 : 40
                 }
                 ParallelAnimation {
                     NumberAnimation {
                         target: contentHolder
                         property: "opacity"
                         to: 1
-                        duration: Appearance.animationCurves.expressiveEffectsDuration
+                        duration: 160
                         easing.type: Easing.BezierSpline
                         easing.bezierCurve: Appearance.animationCurves.expressiveEffects
                     }
@@ -403,7 +404,7 @@ LazyLoader {
                         target: contentShift
                         properties: "x,y"
                         to: 0
-                        duration: Appearance.animationCurves.expressiveDefaultSpatialDuration
+                        duration: root.reducedMotion ? 0 : 180
                         easing.type: Easing.BezierSpline
                         easing.bezierCurve: Appearance.animationCurves.expressiveFastSpatial
                     }
@@ -417,16 +418,16 @@ LazyLoader {
             NumberAnimation {
                 target: bodyScale
                 property: root.barVertical ? "xScale" : "yScale"
-                to: root.morph ? 0.01 : 0.4
-                duration: 220
+                to: root.reducedMotion ? 1 : 0.95
+                duration: root.reducedMotion ? 0 : 140
                 easing.type: Easing.BezierSpline
                 easing.bezierCurve: Appearance.animationCurves.emphasizedAccel
             }
             NumberAnimation {
                 target: bodyScale
                 property: root.barVertical ? "yScale" : "xScale"
-                to: root.morph ? 1 : 0.85
-                duration: 220
+                to: root.reducedMotion ? 1 : 0.95
+                duration: root.reducedMotion ? 0 : 140
                 easing.type: Easing.BezierSpline
                 easing.bezierCurve: Appearance.animationCurves.emphasizedAccel
             }
@@ -434,7 +435,7 @@ LazyLoader {
                 target: body
                 property: "opacity"
                 to: 0
-                duration: 200
+                duration: 160
                 easing.type: Easing.BezierSpline
                 easing.bezierCurve: Appearance.animationCurves.emphasizedAccel
             }

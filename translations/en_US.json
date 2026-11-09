@@ -1266,5 +1266,16 @@
   "Choose how the battery looks in the bar": "Choose how the battery looks in the bar",
   "Magnification": "Magnification",
   "Magnification amount": "Magnification amount",
-  "Magnification amount (%)": "Magnification amount (%)"
+  "Magnification amount (%)": "Magnification amount (%)",
+  "Motion": "Motion",
+  "Reduce motion": "Reduce motion",
+  "Root filesystem (/)": "Root filesystem (/)",
+  "History points": "History points",
+  "Stale · %1 old": "Stale · %1 old",
+  "Focus 25m": "Focus 25m",
+  "Stop %1m": "Stop %1m",
+  "No laps": "No laps",
+  "lap": "lap",
+  "laps": "laps",
+  "Karaoke lyrics": "Karaoke lyrics"
 }

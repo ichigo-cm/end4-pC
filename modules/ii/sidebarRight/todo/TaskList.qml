@@ -15,6 +15,32 @@ Item {
     property int todoListItemSpacing: 5
     property int todoListItemPadding: 8
     property int listBottomPadding: 80
+    property var previousTodoSnapshot: []
+    property int cueOriginalIndex: -1
+    property bool cueDone: false
+    property int cueSerial: 0
+
+    function updateTodoSnapshot() {
+        const current = Todo.list.map((task, index) => ({ task: task, done: task.done, index: index }))
+        let changedTask = null
+        for (const previous of root.previousTodoSnapshot) {
+            changedTask = current.find(entry => entry.task === previous.task && entry.done !== previous.done) ?? null
+            if (changedTask) break
+        }
+        root.previousTodoSnapshot = current
+        root.cueOriginalIndex = changedTask ? changedTask.index : -1
+        if (changedTask) {
+            root.cueDone = changedTask.done
+            root.cueSerial += 1
+        }
+    }
+
+    Component.onCompleted: root.previousTodoSnapshot = Todo.list.map((task, index) => ({ task: task, done: task.done, index: index }))
+
+    Connections {
+        target: Todo
+        function onListChanged() { root.updateTodoSnapshot() }
+    }
 
     StyledListView {
         id: listView
@@ -30,10 +56,39 @@ Item {
             property bool pendingDoneToggle: false
             property bool pendingDelete: false
             property bool enableHeightAnimation: false
+            property real cueOpacity: 1
 
             implicitHeight: todoItemRectangle.implicitHeight
             width: ListView.view.width
             clip: true
+            opacity: cueOpacity
+
+            function playTaskChangeCueIfMatching() {
+                if (root.cueSerial > 0
+                        && modelData.originalIndex === root.cueOriginalIndex
+                        && modelData.done === root.cueDone) {
+                    cueAnimation.stop()
+                    cueOpacity = 0.72
+                    cueAnimation.start()
+                }
+            }
+
+            Component.onCompleted: playTaskChangeCueIfMatching()
+            onModelDataChanged: playTaskChangeCueIfMatching()
+
+            Connections {
+                target: root
+                function onCueSerialChanged() { todoItem.playTaskChangeCueIfMatching() }
+            }
+
+            NumberAnimation {
+                id: cueAnimation
+                target: todoItem
+                property: "cueOpacity"
+                to: 1
+                duration: Config.options.appearance.reducedMotion ? 120 : 170
+                easing.type: Easing.OutCubic
+            }
 
             Behavior on implicitHeight {
                 enabled: enableHeightAnimation

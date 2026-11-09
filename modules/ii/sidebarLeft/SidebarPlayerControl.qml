@@ -68,7 +68,11 @@ Item {
         onTriggered: root.player?.positionChanged()  
     }
 
-    onArtFilePathChanged: {
+    property int artRequestVersion: 0
+
+    onArtFilePathChanged: requestArtDownload()
+    function requestArtDownload() {
+        root.artRequestVersion += 1
         if (!root.artUrl || root.artUrl.length == 0) {
             root.artDominantColor = Appearance.m3colors.m3secondaryContainer
             root.downloaded = false
@@ -79,12 +83,14 @@ Item {
             return
         }
         if (root.artUrl.startsWith("http://") || root.artUrl.startsWith("https://")) {
+            root.downloaded = false
+            if (coverArtDownloader.running) return
             coverArtDownloader.targetFile = root.artUrl
             coverArtDownloader.artFilePath = root.artFilePath
-            root.downloaded = false
+            coverArtDownloader.requestVersion = root.artRequestVersion
             coverArtDownloader.running = true
         } else {
-            root.downloaded = true
+            root.downloaded = false
         }
     }
 
@@ -92,8 +98,25 @@ Item {
         id: coverArtDownloader
         property string targetFile: root.artUrl
         property string artFilePath: root.artFilePath
-        command: ["bash", "-c", `[ -f ${artFilePath} ] || curl -sSL '${targetFile}' -o '${artFilePath}'`]
-        onExited: (exitCode, exitStatus) => { root.downloaded = true }
+        property int requestVersion: 0
+        command: ["bash", "-c", `
+            if [ -f "$1" ]; then exit 0; fi
+            tmp=$(mktemp -- "$1.part.XXXXXX") || exit 1
+            if curl --fail --location --silent --show-error --connect-timeout 5 --max-time 20 --max-filesize 10485760 --proto "=http,https" --proto-redir "=http,https" -o "$tmp" -- "$2" &&
+                mv -f -- "$tmp" "$1"; then
+                :
+            else
+                rm -f -- "$tmp"
+                exit 1
+            fi
+        `, "_", artFilePath, targetFile]
+        onExited: (exitCode, exitStatus) => {
+            if (requestVersion !== root.artRequestVersion || targetFile !== root.artUrl || artFilePath !== root.artFilePath) {
+                Qt.callLater(() => root.requestArtDownload())
+                return
+            }
+            root.downloaded = exitCode === 0
+        }
     }
 
     ColorQuantizer {

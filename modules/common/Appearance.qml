@@ -292,7 +292,7 @@ Singleton {
 
     animation: QtObject {
         property QtObject elementMove: QtObject {
-            property int duration: animationCurves.expressiveDefaultSpatialDuration
+            property int duration: Config.options.appearance.reducedMotion ? 0 : animationCurves.expressiveDefaultSpatialDuration
             property int type: Easing.BezierSpline
             property list<real> bezierCurve: animationCurves.expressiveDefaultSpatial
             property int velocity: 650
@@ -306,7 +306,7 @@ Singleton {
         }
 
         property QtObject elementMoveSmall: QtObject {
-            property int duration: animationCurves.expressiveFastSpatialDuration
+            property int duration: Config.options.appearance.reducedMotion ? 0 : animationCurves.expressiveFastSpatialDuration
             property int type: Easing.BezierSpline
             property list<real> bezierCurve: animationCurves.expressiveFastSpatial
             property int velocity: 650
@@ -320,7 +320,7 @@ Singleton {
         }
 
         property QtObject elementMoveEnter: QtObject {
-            property int duration: 400
+            property int duration: Config.options.appearance.reducedMotion ? 0 : 400
             property int type: Easing.BezierSpline
             property list<real> bezierCurve: animationCurves.emphasizedDecel
             property int velocity: 650
@@ -335,7 +335,7 @@ Singleton {
         }
 
         property QtObject elementMoveExit: QtObject {
-            property int duration: 200
+            property int duration: Config.options.appearance.reducedMotion ? 0 : 200
             property int type: Easing.BezierSpline
             property list<real> bezierCurve: animationCurves.emphasizedAccel
             property int velocity: 650
@@ -368,7 +368,7 @@ Singleton {
         }
 
         property QtObject elementResize: QtObject {
-            property int duration: 300
+            property int duration: Config.options.appearance.reducedMotion ? 0 : 300
             property int type: Easing.BezierSpline
             property list<real> bezierCurve: animationCurves.emphasized
             property int velocity: 650
@@ -383,7 +383,7 @@ Singleton {
         }
 
         property QtObject clickBounce: QtObject {
-            property int duration: 400
+            property int duration: Config.options.appearance.reducedMotion ? 0 : 150
             property int type: Easing.BezierSpline
             property list<real> bezierCurve: animationCurves.expressiveDefaultSpatial
             property int velocity: 850
@@ -407,7 +407,7 @@ Singleton {
         }
 
         property QtObject sidebarSlideEnter: QtObject {
-            property int duration: 300
+            property int duration: Config.options.appearance.reducedMotion ? 0 : 300
             property int type: Easing.BezierSpline
             property list<real> bezierCurve: animationCurves.standardDecel
             property int velocity: 650
@@ -422,7 +422,7 @@ Singleton {
         }
 
         property QtObject sidebarSlideExit: QtObject {
-            property int duration: 250
+            property int duration: Config.options.appearance.reducedMotion ? 0 : 250
             property int type: Easing.BezierSpline
             property list<real> bezierCurve: animationCurves.standardAccel
             property int velocity: 650

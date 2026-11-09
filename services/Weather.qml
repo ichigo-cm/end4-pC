@@ -15,7 +15,23 @@ Singleton {
     readonly property int fetchInterval: Config.options.bar.weather.fetchInterval * 60 * 1000
     readonly property string city: Config.options.bar.weather.city
     readonly property bool useUSCS: Config.options.bar.weather.useUSCS
+    readonly property string cachePath: `${Quickshell.env("HOME")}/.cache/quickshell/weather.json`
     property bool gpsActive: Config.options.bar.weather.enableGPS
+    property bool offline: false
+    property double lastSuccessfulFetchMs: 0
+    property int ageTick: 0
+    property var pendingCachePayload: null
+
+    readonly property string staleAge: {
+        // ageTick makes this binding refresh as time passes while offline.
+        const elapsedMs = Math.max(0, Date.now() - root.lastSuccessfulFetchMs + root.ageTick * 0)
+        const minutes = Math.max(1, Math.ceil(elapsedMs / 60000))
+        if (minutes < 60) return `${minutes}m`
+        const hours = Math.floor(minutes / 60)
+        if (hours < 24) return `${hours}h ${minutes % 60}m`
+        const days = Math.floor(hours / 24)
+        return `${days}d ${hours % 24}h`
+    }
 
     onUseUSCSChanged: root.getData()
     onCityChanged: root.getData()
@@ -34,6 +50,8 @@ Singleton {
         windDir: 0,
         wCode: 0,
         city: "",
+        description: "",
+        cr: "0%",
         wind: "",
         precip: "",
         visib: "",
@@ -42,6 +60,54 @@ Singleton {
         tempFeelsLike: "",
         lastRefresh: ""
     })
+
+    function shellQuote(value) {
+        return "'" + String(value).replace(/'/g, "'\"'\"'") + "'"
+    }
+
+    function writeCache(displayData, timestamp) {
+        // Persist only the rendered fields; never include the API response, location, or API key.
+        root.pendingCachePayload = JSON.stringify({ timestamp: timestamp, values: displayData })
+        root.startCacheWrite()
+    }
+
+    function startCacheWrite() {
+        if (cacheWriter.running || root.pendingCachePayload === null) return
+        const payload = root.pendingCachePayload
+        root.pendingCachePayload = null
+        const directory = `${Quickshell.env("HOME")}/.cache/quickshell`
+        cacheWriter.command = ["bash", "-c",
+            `mkdir -p -- ${root.shellQuote(directory)} && tmp=${root.shellQuote(root.cachePath)}.tmp.$$ && printf '%s' ${root.shellQuote(payload)} > "$tmp" && mv -f -- "$tmp" ${root.shellQuote(root.cachePath)}`]
+        cacheWriter.running = true
+    }
+
+    function restoreCache(raw) {
+        try {
+            const saved = JSON.parse(raw)
+            const timestamp = Number(saved?.timestamp)
+            const values = saved?.values
+            const strings = ["description", "cr", "humidity", "sunrise", "sunset", "city", "wind", "precip", "visib", "press", "temp", "tempFeelsLike", "lastRefresh"]
+            if (!Number.isFinite(timestamp) || timestamp <= 0 || !values || typeof values !== "object")
+                return false
+            if (strings.some(key => typeof values[key] !== "string")
+                || !Number.isFinite(values.windDir) || !Number.isFinite(values.wCode))
+                return false
+
+            // Rebuild a strict display-only object instead of assigning arbitrary cache keys.
+            const restored = {}
+            strings.forEach(key => restored[key] = values[key])
+            restored.windDir = values.windDir
+            restored.wCode = values.wCode
+            if (root.lastSuccessfulFetchMs === 0) {
+                root.data = restored
+                root.lastSuccessfulFetchMs = timestamp
+            }
+            return true
+        } catch (e) {
+            console.warn("[WeatherService] Ignoring invalid weather cache:", e.message)
+            return false
+        }
+    }
 
     function refineData(data) {
         let temp = {}
@@ -87,9 +153,12 @@ Singleton {
             temp.tempFeelsLike = roundedFeels + "°C"
         }
 
+        const fetchedAt = Date.now()
         temp.lastRefresh = DateTime.time + " • " + DateTime.date
-
         root.data = temp
+        root.lastSuccessfulFetchMs = fetchedAt
+        root.offline = false
+        root.writeCache(temp, fetchedAt)
     }
 
     function getData() {
@@ -98,6 +167,7 @@ Singleton {
 
         if (!apiKey || apiKey === "") {
             console.error("[WeatherService] Missing OpenWeather API key.")
+            root.offline = true
             return
         }
 
@@ -113,7 +183,7 @@ Singleton {
         url += `&units=${units}`
         url += `&appid=${apiKey}`
 
-        let command = `curl -s "${url}"`
+        let command = `curl -sS "${url}"`
 
         fetcher.command[2] = command
         fetcher.running = true
@@ -124,6 +194,7 @@ Singleton {
     }
 
     Component.onCompleted: {
+        cacheFile.reload()
         if (!root.gpsActive) return
         console.info("[WeatherService] Starting GPS service.")
         positionSource.start()
@@ -134,23 +205,63 @@ Singleton {
         command: ["bash", "-c", ""]
         stdout: StdioCollector {
             onStreamFinished: {
-                if (text.length === 0)
+                if (text.length === 0) {
+                    root.offline = true
                     return
+                }
 
                 try {
                     const parsedData = JSON.parse(text)
 
-                    if (parsedData.cod && parsedData.cod !== 200) {
+                    if (parsedData.cod !== undefined && Number(parsedData.cod) !== 200) {
                         console.error("[WeatherService] API error:", parsedData.message)
+                        root.offline = true
+                        return
+                    }
+
+                    if (!parsedData.main || !Number.isFinite(Number(parsedData.main.temp))
+                        || !Array.isArray(parsedData.weather) || parsedData.weather.length === 0) {
+                        console.error("[WeatherService] Invalid weather response.")
+                        root.offline = true
                         return
                     }
 
                     root.refineData(parsedData)
                 } catch (e) {
                     console.error("[WeatherService] JSON parse error:", e.message)
+                    root.offline = true
                 }
             }
         }
+        onExited: code => {
+            if (code !== 0) root.offline = true
+        }
+    }
+
+    FileView {
+        id: cacheFile
+        path: root.cachePath
+        printErrors: false
+        onLoaded: root.restoreCache(cacheFile.text())
+        onLoadFailed: error => {
+            if (error !== FileViewError.FileNotFound)
+                console.warn("[WeatherService] Could not read weather cache:", error)
+        }
+    }
+
+    Process {
+        id: cacheWriter
+        onExited: code => {
+            if (code !== 0) console.warn("[WeatherService] Could not update weather cache.")
+            root.startCacheWrite()
+        }
+    }
+
+    Timer {
+        running: root.offline && root.lastSuccessfulFetchMs > 0
+        repeat: true
+        interval: 60000
+        onTriggered: root.ageTick++
     }
 
     PositionSource {

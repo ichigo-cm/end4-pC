@@ -26,7 +26,10 @@ Singleton {
     property string maxAvailableSwapString: kbToGbString(ResourceUsage.swapTotal)
     property string maxAvailableCpuString: "--"
 
-    readonly property int historyLength: Config?.options.resources.historyLength ?? 60
+    readonly property int historyLength: {
+        const configuredLength = Number(Config?.options?.resources?.historyLength ?? 60)
+        return Number.isFinite(configuredLength) ? Math.max(1, Math.min(600, Math.round(configuredLength))) : 60
+    }
     property list<real> cpuUsageHistory: []
     property list<real> memoryUsageHistory: []
     property list<real> swapUsageHistory: []
@@ -106,21 +109,21 @@ Singleton {
         return (kb / (1024 * 1024)).toFixed(1) + " GB"
     }
 
+    function appendHistory(history, value) {
+        const updated = [...history, value]
+        return updated.length > root.historyLength ? updated.slice(-root.historyLength) : updated
+    }
     function updateMemoryUsageHistory() {
-        memoryUsageHistory = [...memoryUsageHistory, memoryUsedPercentage]
-        if (memoryUsageHistory.length > historyLength) memoryUsageHistory.shift()
+        memoryUsageHistory = appendHistory(memoryUsageHistory, memoryUsedPercentage)
     }
     function updateSwapUsageHistory() {
-        swapUsageHistory = [...swapUsageHistory, swapUsedPercentage]
-        if (swapUsageHistory.length > historyLength) swapUsageHistory.shift()
+        swapUsageHistory = appendHistory(swapUsageHistory, swapUsedPercentage)
     }
     function updateCpuUsageHistory() {
-        cpuUsageHistory = [...cpuUsageHistory, cpuUsage]
-        if (cpuUsageHistory.length > historyLength) cpuUsageHistory.shift()
+        cpuUsageHistory = appendHistory(cpuUsageHistory, cpuUsage)
     }
     function updateDiskUsageHistory() {
-        diskUsageHistory = [...diskUsageHistory, diskUsedPercentage]
-        if (diskUsageHistory.length > historyLength) diskUsageHistory.shift()
+        diskUsageHistory = appendHistory(diskUsageHistory, diskUsedPercentage)
     }
     function updateHistories() {
         updateMemoryUsageHistory()

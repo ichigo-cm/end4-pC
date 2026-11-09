@@ -33,10 +33,11 @@ AbstractBackgroundWidget {
         property color shapeColor: Appearance.colors.colPrimary
         property var onToggle: () => {}
         property var onReset: () => {}
+        property real extraContentHeight: 22
         default property alias extraContent: extraSlot.data
 
         implicitWidth: root.cardWidth
-        implicitHeight: root.cardHeight
+        implicitHeight: root.cardHeight + Math.max(0, timerCard.extraContentHeight - 22)
         widget: root
         color: timerCard.bgColor
 
@@ -104,7 +105,7 @@ AbstractBackgroundWidget {
             Item {
                 id: extraSlot
                 Layout.fillWidth: true
-                Layout.preferredHeight: children.length > 0 ? 22 : 0
+                Layout.preferredHeight: children.length > 0 ? timerCard.extraContentHeight : 0
                 Layout.topMargin: children.length > 0 ? 6 : 0
             }
         }
@@ -135,8 +136,8 @@ AbstractBackgroundWidget {
 
         // Stopwatch
         TimerCard {
-            icon: "timer"
-            value: TimerService.formatSeconds(TimerService.stopwatchTime / 100)
+            icon: TimerService.stopwatchTime > 0 ? "play_arrow" : "timer"
+            value: TimerService.formatStopwatchTime(TimerService.stopwatchTime)
             label: "Stopwatch"
             running: TimerService.stopwatchRunning
             shape: MaterialShape.Shape.Sunny
@@ -144,6 +145,110 @@ AbstractBackgroundWidget {
             shapeColor: Appearance.colors.colSecondary
             onToggle: () => TimerService.toggleStopwatch()
             onReset: () => TimerService.stopwatchReset()
+            extraContentHeight: 20 + Math.min(TimerService.stopwatchLaps.length, 4) * 14
+
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: 1
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 18
+                    spacing: 4
+
+                    Rectangle {
+                        Layout.preferredWidth: 42
+                        Layout.preferredHeight: 18
+                        radius: Appearance.rounding.small
+                        color: TimerService.stopwatchRunning
+                            ? ColorUtils.transparentize(Appearance.colors.colOnSecondaryContainer, 0.85)
+                            : ColorUtils.transparentize(Appearance.colors.colErrorContainer, 0.3)
+                        opacity: TimerService.stopwatchRunning || TimerService.stopwatchTime > 0
+                            || TimerService.stopwatchLaps.length > 0 ? 1 : 0.45
+
+                        StyledText {
+                            anchors.centerIn: parent
+                            text: TimerService.stopwatchRunning
+                                ? Translation.tr("Lap")
+                                : Translation.tr("Reset")
+                            font.pixelSize: Appearance.font.pixelSize.smallest
+                            font.weight: Font.DemiBold
+                            color: Appearance.colors.colOnPrimaryContainer
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            enabled: TimerService.stopwatchRunning || TimerService.stopwatchTime > 0
+                                || TimerService.stopwatchLaps.length > 0
+                            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: {
+                                if (TimerService.stopwatchRunning)
+                                    TimerService.stopwatchRecordLap()
+                                else
+                                    TimerService.stopwatchReset()
+                            }
+                        }
+                    }
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: {
+                            const count = TimerService.stopwatchLaps.length;
+                            return count > 0
+                                ? `${count} ${Translation.tr(count === 1 ? "lap" : "laps")}`
+                                : Translation.tr("No laps");
+                        }
+                        font.pixelSize: Appearance.font.pixelSize.smallest
+                        color: Appearance.colors.colOnPrimaryContainer
+                        opacity: 0.65
+                        elide: Text.ElideRight
+                    }
+                }
+
+                ListView {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Math.min(TimerService.stopwatchLaps.length, 4) * 14
+                    clip: true
+                    spacing: 0
+
+                    model: ScriptModel {
+                        values: {
+                            const laps = Array.from(TimerService.stopwatchLaps ?? []);
+                            return laps.slice().reverse().map((lapTime, index) => {
+                                const originalIndex = laps.length - index - 1;
+                                const previousTime = originalIndex > 0 ? laps[originalIndex - 1] : 0;
+                                return {
+                                    number: originalIndex + 1,
+                                    split: Math.max(0, lapTime - previousTime)
+                                };
+                            });
+                        }
+                    }
+
+                    delegate: RowLayout {
+                        required property var modelData
+                        width: ListView.view.width
+                        height: 14
+                        spacing: 2
+
+                        StyledText {
+                            text: `#${modelData.number}`
+                            font.pixelSize: Appearance.font.pixelSize.smallest
+                            color: Appearance.colors.colOnPrimaryContainer
+                            opacity: 0.6
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        StyledText {
+                            text: TimerService.formatStopwatchTime(modelData.split)
+                            font.pixelSize: Appearance.font.pixelSize.smallest
+                            font.features: { "tnum": 1 }
+                            color: Appearance.colors.colOnPrimaryContainer
+                        }
+                    }
+                }
+            }
         }
 
         // Countdown
