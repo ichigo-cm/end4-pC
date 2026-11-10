@@ -17,6 +17,8 @@ Singleton {
     property int activeIndex: -1
     property int revealedCharacters: 0
     property string status: "loading"
+    property string lyricsProvider: ""
+    property string lyricsTimingLevel: ""
     property var slots: ["", "", "", "", "", "", ""]
     property var fullSlots: ["", "", "", "", "", "", ""]
     property var romanizedSlots: ["", "", "", "", "", "", ""]
@@ -35,6 +37,11 @@ Singleton {
     readonly property bool karaokeMotion: root.lyricMode === "karaoke" && !Config.options.appearance.reducedMotion
     readonly property bool hasTimedVocals: root.lyricsLines.some(line => Array.isArray(line.vocalLayers) && line.vocalLayers.length > 0)
     readonly property real leadSeconds: 0.15
+    readonly property int lyricsSyncOffsetMs: {
+        const value = Number(Config.options.media.lyricsSyncOffsetMs ?? 0)
+        return Number.isFinite(value) ? Math.max(-5000, Math.min(5000, Math.round(value))) : 0
+    }
+    readonly property real lyricsOffsetSeconds: root.lyricsSyncOffsetMs / 1000
 
     property real basePosition: 0
     property real baseTime: Date.now()
@@ -99,6 +106,27 @@ Singleton {
 
     function currentPosition() {
         return root.playing ? root.basePosition + (Date.now() - root.baseTime) / 1000 : root.basePosition
+    }
+
+    function lyricPosition() {
+        return root.currentPosition() + root.leadSeconds + root.lyricsOffsetSeconds
+    }
+
+    function setLyricsSyncOffset(valueMs) {
+        const value = Number(valueMs)
+        const offset = Number.isFinite(value) ? Math.max(-5000, Math.min(5000, Math.round(value))) : 0
+        Config.options.media.lyricsSyncOffsetMs = offset
+        return offset
+    }
+
+    function adjustLyricsSyncOffset(deltaMs) {
+        const delta = Number(deltaMs)
+        if (!Number.isFinite(delta)) return root.lyricsSyncOffsetMs
+        return root.setLyricsSyncOffset(root.lyricsSyncOffsetMs + Math.round(delta))
+    }
+
+    function resetLyricsSyncOffset() {
+        return root.setLyricsSyncOffset(0)
     }
 
     function lineEndPosition(index, start, characterCount) {
@@ -241,7 +269,7 @@ Singleton {
             root.revealedCharacters = 0
             return
         }
-        const position = root.currentPosition() + root.leadSeconds
+        const position = root.lyricPosition()
         const nextCount = root.revealCountAt(root.activeIndex, position)
         if (nextCount !== root.revealedCharacters)
             root.revealedCharacters = nextCount
@@ -299,7 +327,7 @@ Singleton {
     function update() {
         boundaryTimer.stop()
         if (!root.synced) return
-        const position = root.currentPosition() + root.leadSeconds
+        const position = root.lyricPosition()
         const idx = root.indexAt(position)
         if (idx !== root.activeIndex) {
             root.activeIndex = idx
@@ -314,7 +342,7 @@ Singleton {
 
         const next = root.lyricsLines[idx + 1]
         if (!root.playing || !next) return
-        const delay = (next.time - root.leadSeconds - root.currentPosition()) * 1000
+        const delay = (next.time - root.lyricPosition()) * 1000
         boundaryTimer.interval = Math.max(1, Math.ceil(delay))
         boundaryTimer.start()
     }
@@ -340,12 +368,13 @@ Singleton {
         repeat: true
         running: root.synced && root.playing && (root.karaokeMotion || root.hasTimedVocals)
         onTriggered: {
-            const index = root.indexAt(root.currentPosition() + root.leadSeconds)
+            const position = root.lyricPosition()
+            const index = root.indexAt(position)
             if (index !== root.activeIndex)
                 root.update()
             else {
                 if (root.karaokeMotion) root.updateKaraoke()
-                root.activeVocalLayers = root.vocalLayersAt(index, root.currentPosition() + root.leadSeconds)
+                root.activeVocalLayers = root.vocalLayersAt(index, position)
             }
         }
     }
@@ -374,6 +403,8 @@ Singleton {
                         if (payload.status !== "ok" || !Array.isArray(payload.lines)) return
                         root.romanizationSupported = payload.romanizationSupported === true
                         root.romanizationAvailable = payload.romanizationAvailable === true
+                        root.lyricsProvider = ["lrclib", "betterlyrics"].includes(payload.source) ? payload.source : ""
+                        root.lyricsTimingLevel = ["word", "cue", "line"].includes(payload.timingLevel) ? payload.timingLevel : ""
                         lines = payload.lines
                             .filter(line => Number.isFinite(Number(line?.time)) && typeof line?.text === "string")
                             .map(line => {
@@ -470,6 +501,8 @@ Singleton {
         root.activeVocalLayers = []
         root.romanizationSupported = false
         root.romanizationAvailable = false
+        root.lyricsProvider = ""
+        root.lyricsTimingLevel = ""
         root.status = "loading"
 
         const title = root.activePlayer?.trackTitle ?? ""
@@ -496,6 +529,7 @@ Singleton {
     onActivePlayerChanged: restartDebounce.restart()
     onKaraokeMotionChanged: root.update()
     onLyricModeChanged: root.update()
+    onLyricsSyncOffsetMsChanged: root.update()
 
     Connections {
         target: root.activePlayer

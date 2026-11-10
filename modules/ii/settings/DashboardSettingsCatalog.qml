@@ -131,6 +131,7 @@ QtObject {
         "bar:Icons folder": { type: "text", get: () => Config.options.custom.iconsPath, set: v => { Config.options.custom.iconsPath = v; } },
         "bar:Preferred player": { type: "text", get: () => Config.options.bar.media.preferredPlayer, set: v => { Config.options.bar.media.preferredPlayer = v; } },
         "media:Lyrics mode": { type: "select", get: () => Config.options.media.lyricMode || (Config.options.media.karaokeAnimation ? "karaoke" : "line"), set: v => { Config.options.media.lyricMode = v; Config.options.media.karaokeAnimation = v === "karaoke"; }, options: [{ displayName: Translation.tr("Karaoke"), icon: "lyrics", value: "karaoke" }, { displayName: Translation.tr("Line highlight"), icon: "format_align_left", value: "line" }, { displayName: Translation.tr("Static sync"), icon: "text_fields", value: "static" }] },
+        "media:Lyrics sync offset (ms)": { type: "spin", get: () => LyricsService.lyricsSyncOffsetMs, set: v => LyricsService.setLyricsSyncOffset(v), from: -5000, to: 5000, stepSize: 50 },
         "media:Romanization": { type: "switch", get: () => Config.options.media.showRomanization, set: v => { Config.options.media.showRomanization = v; } },
         "media:Vocal layers": { type: "switch", get: () => Config.options.media.showVocalLayers, set: v => { Config.options.media.showVocalLayers = v; } },
         "media:Album-art backdrop": { type: "switch", get: () => Config.options.media.dynamicLyricsBackground, set: v => { Config.options.media.dynamicLyricsBackground = v; } },

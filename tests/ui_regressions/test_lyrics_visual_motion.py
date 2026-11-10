@@ -35,6 +35,36 @@ class LyricsVisualMotionTests(unittest.TestCase):
         self.assertIn("ColorUtils.colorWithLightness(source, 0.8)", immersive)
         self.assertIn("activeColor: immersiveWindow.lyricAccent", immersive)
 
+    def test_sync_offset_controls_are_persistent_bounded_and_exposed_in_settings(self) -> None:
+        config = (ROOT / "modules/common/Config.qml").read_text(encoding="utf-8")
+        service = (ROOT / "services/LyricsService.qml").read_text(encoding="utf-8")
+        immersive = (ROOT / "modules/ii/overlay/LyricsImmersiveView.qml").read_text(encoding="utf-8")
+        settings = (ROOT / "modules/ii/settings/DashboardSettingsCatalog.qml").read_text(encoding="utf-8")
+
+        self.assertIn("property int lyricsSyncOffsetMs: 0", config)
+        self.assertIn("Math.max(-5000, Math.min(5000", service)
+        self.assertIn("function adjustLyricsSyncOffset(deltaMs)", service)
+        self.assertIn("function resetLyricsSyncOffset()", service)
+        self.assertGreaterEqual(service.count("root.lyricPosition()"), 4)
+        self.assertIn("onLyricsSyncOffsetMsChanged: root.update()", service)
+        self.assertIn("Shift lyrics later by 50 milliseconds", immersive)
+        self.assertIn("Shift lyrics earlier by 50 milliseconds", immersive)
+        self.assertIn("LyricsService.resetLyricsSyncOffset()", immersive)
+        self.assertIn('"media:Lyrics sync offset (ms)"', settings)
+
+    def test_fullscreen_lyrics_disclose_provider_and_timing_precision(self) -> None:
+        helper = (ROOT / "scripts/lyrics/lyrics.py").read_text(encoding="utf-8")
+        service = (ROOT / "services/LyricsService.qml").read_text(encoding="utf-8")
+        immersive = (ROOT / "modules/ii/overlay/LyricsImmersiveView.qml").read_text(encoding="utf-8")
+
+        self.assertIn('"timingLevel": timing_level', helper)
+        self.assertIn('"source": source', helper)
+        self.assertIn('root.lyricsProvider = ["lrclib", "betterlyrics"].includes(payload.source)', service)
+        self.assertIn('root.lyricsTimingLevel = ["word", "cue", "line"].includes(payload.timingLevel)', service)
+        self.assertIn('Translation.tr("Word-synced")', immersive)
+        self.assertIn('Translation.tr("Cue-synced")', immersive)
+        self.assertIn('Translation.tr("Line-synced")', immersive)
+
 
 if __name__ == "__main__":
     unittest.main()

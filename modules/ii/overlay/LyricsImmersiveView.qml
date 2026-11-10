@@ -225,6 +225,80 @@ Item {
                                 font.pixelSize: Appearance.font.pixelSize.small
                                 font.features: { "tnum": 1 }
                             }
+
+                            StyledText {
+                                Layout.alignment: Qt.AlignHCenter
+                                visible: LyricsService.lyricsProvider !== "" && LyricsService.lyricsTimingLevel !== ""
+                                text: {
+                                    const timing = LyricsService.lyricsTimingLevel === "word"
+                                        ? Translation.tr("Word-synced")
+                                        : LyricsService.lyricsTimingLevel === "cue"
+                                            ? Translation.tr("Cue-synced")
+                                            : Translation.tr("Line-synced")
+                                    const provider = LyricsService.lyricsProvider === "lrclib"
+                                        ? "LRCLIB"
+                                        : Translation.tr("Better Lyrics")
+                                    return `${timing} · ${provider}`
+                                }
+                                color: Qt.rgba(1, 1, 1, 0.78)
+                                font.pixelSize: Appearance.font.pixelSize.small
+                                Accessible.name: text
+                            }
+
+                            ColumnLayout {
+                                Layout.alignment: Qt.AlignHCenter
+                                spacing: 6
+
+                                StyledText {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    text: Translation.tr("Lyrics offset · all tracks")
+                                    color: Qt.rgba(1, 1, 1, 0.78)
+                                    font.pixelSize: Appearance.font.pixelSize.small
+                                }
+
+                                RowLayout {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    spacing: 8
+
+                                    ControlButton {
+                                        symbol: "remove"
+                                        label: Translation.tr("Shift lyrics later by 50 milliseconds")
+                                        implicitWidth: 44
+                                        implicitHeight: 44
+                                        buttonRadius: 22
+                                        callback: () => LyricsService.adjustLyricsSyncOffset(-50)
+                                    }
+
+                                    StyledText {
+                                        Layout.preferredWidth: 76
+                                        text: `${LyricsService.lyricsSyncOffsetMs > 0 ? "+" : ""}${LyricsService.lyricsSyncOffsetMs} ms`
+                                        color: "white"
+                                        font.pixelSize: Appearance.font.pixelSize.small
+                                        font.features: { "tnum": 1 }
+                                        horizontalAlignment: Text.AlignHCenter
+                                        Accessible.name: `${Translation.tr("Lyrics offset")}: ${text}`
+                                    }
+
+                                    ControlButton {
+                                        symbol: "add"
+                                        label: Translation.tr("Shift lyrics earlier by 50 milliseconds")
+                                        implicitWidth: 44
+                                        implicitHeight: 44
+                                        buttonRadius: 22
+                                        callback: () => LyricsService.adjustLyricsSyncOffset(50)
+                                    }
+
+                                    ControlButton {
+                                        symbol: "restart_alt"
+                                        label: Translation.tr("Reset lyric sync offset")
+                                        implicitWidth: 44
+                                        implicitHeight: 44
+                                        buttonRadius: 22
+                                        enabled: LyricsService.lyricsSyncOffsetMs !== 0
+                                        callback: () => LyricsService.resetLyricsSyncOffset()
+                                    }
+                                }
+                            }
                         }
 
                         Rectangle {

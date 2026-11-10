@@ -21,7 +21,7 @@ class MediaAndWeatherGuardTests(unittest.TestCase):
         self.assertNotIn("property var action", source)
         self.assertIn("property var callback", source)
         self.assertIn("downAction: () => { if (callback) callback(); }", source)
-        self.assertEqual(source.count("callback: () =>"), 4)
+        self.assertEqual(source.count("callback: () =>"), 7)
 
     def test_karaoke_uses_weighted_cue_and_line_pacing(self) -> None:
         source = (ROOT / "services/LyricsService.qml").read_text(encoding="utf-8")

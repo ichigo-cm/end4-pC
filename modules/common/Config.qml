@@ -793,6 +793,7 @@ Singleton {
                 property bool filterDuplicatePlayers: true
                 property bool karaokeAnimation: true
                 property string lyricMode: ""
+                property int lyricsSyncOffsetMs: 0 // Positive values advance lyric timing; LyricsService clamps to ±5000 ms.
                 property bool showRomanization: false
                 property bool showVocalLayers: true
                 property bool dynamicLyricsBackground: true

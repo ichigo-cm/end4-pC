@@ -51,7 +51,16 @@ class LyricsQmlTimingTests(unittest.TestCase):
         source = QML_SERVICE.read_text(encoding="utf-8")
         cls.functions = "\n".join(
             _extract_qml_function(source, name)
-            for name in ("normalizedTimingWeights", "weightedRevealCount", "revealCountAt")
+            for name in (
+                "normalizedTimingWeights",
+                "weightedRevealCount",
+                "revealCountAt",
+                "lyricPosition",
+                "indexAt",
+                "setLyricsSyncOffset",
+                "adjustLyricsSyncOffset",
+                "resetLyricsSyncOffset",
+            )
         )
 
     def reveal_counts(self, line: dict, positions: list[float]) -> list[int]:
@@ -65,6 +74,51 @@ root.normalizedTimingWeights = normalizedTimingWeights;
 root.weightedRevealCount = weightedRevealCount;
 const counts = {json.dumps(positions)}.map(position => revealCountAt(0, position));
 console.log(JSON.stringify(counts));
+"""
+        result = subprocess.run(
+            [NODE, "-e", script], check=True, capture_output=True, text=True, timeout=10
+        )
+        return json.loads(result.stdout)
+
+    def offset_indexes(self) -> list[int]:
+        script = f"""
+{self.functions}
+const root = {{
+  currentPosition: () => 10.05,
+  leadSeconds: 0.05,
+  lyricsOffsetSeconds: 0,
+  lyricsLines: [{{ time: 0 }}, {{ time: 10.15 }}]
+}};
+root.lyricPosition = lyricPosition;
+root.indexAt = indexAt;
+const offsets = [-100, 0, 100];
+console.log(JSON.stringify(offsets.map(offset => {{
+  root.lyricsOffsetSeconds = offset / 1000;
+  return root.indexAt(root.lyricPosition());
+}})));
+"""
+        result = subprocess.run(
+            [NODE, "-e", script], check=True, capture_output=True, text=True, timeout=10
+        )
+        return json.loads(result.stdout)
+
+    def offset_adjustments(self) -> list[int]:
+        script = f"""
+{self.functions}
+const Config = {{ options: {{ media: {{ lyricsSyncOffsetMs: 4980 }} }} }};
+const root = {{
+  get lyricsSyncOffsetMs() {{ return Config.options.media.lyricsSyncOffsetMs; }},
+  setLyricsSyncOffset,
+  adjustLyricsSyncOffset,
+  resetLyricsSyncOffset
+}};
+const result = [
+  root.adjustLyricsSyncOffset(50),
+  root.adjustLyricsSyncOffset(50),
+  root.adjustLyricsSyncOffset(-50),
+  root.resetLyricsSyncOffset()
+];
+console.log(JSON.stringify(result));
 """
         result = subprocess.run(
             [NODE, "-e", script], check=True, capture_output=True, text=True, timeout=10
@@ -126,6 +180,12 @@ console.log(JSON.stringify(counts));
         revealed = self.reveal_counts(line, [4])[0]
         self.assertGreater(revealed, len("lead"))
         self.assertLess(revealed, len(line["text"]))
+
+    def test_sync_offset_moves_line_selection_in_the_expected_direction(self) -> None:
+        self.assertEqual(self.offset_indexes(), [0, 0, 1])
+
+    def test_sync_offset_is_clamped_and_resettable(self) -> None:
+        self.assertEqual(self.offset_adjustments(), [5000, 5000, 4950, 0])
 
 
 if __name__ == "__main__":

@@ -532,20 +532,34 @@ def fetch_boidu(title: str, artist: str, duration: float, album: str = "") -> li
     return []
 
 
-def fetch_best_lyrics(title: str, artist: str, duration: float, album: str = "") -> list:
+def fetch_best_lyrics_with_source(title: str, artist: str, duration: float, album: str = "") -> tuple:
     word_synced, line_synced = fetch_lrclib_candidates(title, artist, duration, album)
     if word_synced:
-        return word_synced
+        return word_synced, "lrclib", "word"
 
     ttml_lines = fetch_boidu(title, artist, duration, album)
+    has_lead_timed_cues = any(
+        line.get("cues")
+        for line in ttml_lines
+        if isinstance(line, dict)
+    )
     has_timed_cues = any(
         line.get("cues") or line.get("fullCues")
         for line in ttml_lines
         if isinstance(line, dict)
     )
     if has_timed_cues:
-        return ttml_lines
-    return line_synced or ttml_lines
+        return ttml_lines, "betterlyrics", "cue" if has_lead_timed_cues else "line"
+    if line_synced:
+        return line_synced, "lrclib", "line"
+    if ttml_lines:
+        return ttml_lines, "betterlyrics", "line"
+    return [], "", ""
+
+
+def fetch_best_lyrics(title: str, artist: str, duration: float, album: str = "") -> list:
+    """Preserve the legacy list-returning API while sharing provider selection."""
+    return fetch_best_lyrics_with_source(title, artist, duration, album)[0]
 
 
 def _split_vocals(text: str):
@@ -849,7 +863,7 @@ def main():
     if not title or not artist:
         print("no_info", flush=True)
         sys.exit(0)
-    lines = fetch_best_lyrics(title, artist, duration, album)
+    lines, source, timing_level = fetch_best_lyrics_with_source(title, artist, duration, album)
     if not lines:
         print("not_found", flush=True)
         sys.exit(0)
@@ -861,6 +875,8 @@ def main():
         "lines": lines,
         "romanizationSupported": romanization_supported,
         "romanizationAvailable": romanization_available,
+        "source": source,
+        "timingLevel": timing_level,
     }, ensure_ascii=False), flush=True)
 
 

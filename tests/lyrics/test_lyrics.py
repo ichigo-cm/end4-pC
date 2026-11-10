@@ -284,6 +284,46 @@ lines:
                 patch.object(lyrics_parser, "fetch_boidu", return_value=[{"time": 1.0, "text": "untimed"}]):
             self.assertEqual(lyrics_parser.fetch_best_lyrics("t", "a", 3), line_sync)
 
+    def test_provider_metadata_reports_source_and_timing_precision(self) -> None:
+        word_sync = [{"time": 1.0, "text": "word", "cues": [{"time": 1.0, "text": "word"}]}]
+        line_sync = [{"time": 1.0, "text": "line"}]
+        cue_sync = [{"time": 1.0, "text": "cue", "cues": [{"time": 1.0, "text": "cue"}]}]
+
+        with patch.object(lyrics_parser, "fetch_lrclib_candidates", return_value=(word_sync, line_sync)), \
+                patch.object(lyrics_parser, "fetch_boidu") as fetch_ttml:
+            self.assertEqual(
+                lyrics_parser.fetch_best_lyrics_with_source("t", "a", 3),
+                (word_sync, "lrclib", "word"),
+            )
+            fetch_ttml.assert_not_called()
+
+        with patch.object(lyrics_parser, "fetch_lrclib_candidates", return_value=([], line_sync)), \
+                patch.object(lyrics_parser, "fetch_boidu", return_value=cue_sync):
+            self.assertEqual(
+                lyrics_parser.fetch_best_lyrics_with_source("t", "a", 3),
+                (cue_sync, "betterlyrics", "cue"),
+            )
+
+        vocal_only_timing = [{
+            "time": 1.0,
+            "text": "lead",
+            "cues": [],
+            "fullCues": [{"time": 1.2, "text": "echo"}],
+        }]
+        with patch.object(lyrics_parser, "fetch_lrclib_candidates", return_value=([], line_sync)), \
+                patch.object(lyrics_parser, "fetch_boidu", return_value=vocal_only_timing):
+            self.assertEqual(
+                lyrics_parser.fetch_best_lyrics_with_source("t", "a", 3),
+                (vocal_only_timing, "betterlyrics", "line"),
+            )
+
+        with patch.object(lyrics_parser, "fetch_lrclib_candidates", return_value=([], line_sync)), \
+                patch.object(lyrics_parser, "fetch_boidu", return_value=[]):
+            self.assertEqual(
+                lyrics_parser.fetch_best_lyrics_with_source("t", "a", 3),
+                (line_sync, "lrclib", "line"),
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
