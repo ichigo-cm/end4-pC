@@ -25,6 +25,12 @@ Item {
     property bool hasNextPage: false
     property bool loadingMore: false
     property var apiCoordinator: null
+    property var palette: ({
+        panel: "#1A1928", surface: "#242235", card: "#211F30",
+        cardHover: "#302B42", outline: "#655C77", text: "#F5F1FB",
+        secondary: "#C7BEDA", muted: "#B9AFCA", lavender: "#C2AAFF",
+        mint: "#9DE3D4", error: "#FFB4AB", buttonText: "#20172F"
+    })
 
     function imageUrl(anime) {
         const cover = anime?.coverImage || {};
@@ -91,6 +97,14 @@ Item {
         requestState = "waiting";
         scheduleSearch.interval = apiCoordinator ? apiCoordinator.aniListDelayMs() : 0;
         scheduleSearch.restart();
+    }
+
+    function refreshSearch() {
+        const query = searchField.text.trim() || submittedQuery;
+        if (!query)
+            return;
+        searchField.text = query;
+        search();
     }
 
     function loadMore() {
@@ -228,7 +242,7 @@ Item {
         ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 10
+            spacing: 8
 
             RowLayout {
                 Layout.fillWidth: true
@@ -241,10 +255,10 @@ Item {
                     selectByMouse: true
                     activeFocusOnTab: true
                     font.pixelSize: Appearance.font.pixelSize.normal
-                    color: Appearance.colors.colOnLayer1
-                    placeholderTextColor: Appearance.colors.colSubtext
-                    selectionColor: Appearance.colors.colPrimaryContainer
-                    selectedTextColor: Appearance.colors.colOnPrimaryContainer
+                    color: root.palette.text
+                    placeholderTextColor: root.palette.muted
+                    selectionColor: root.palette.lavender
+                    selectedTextColor: root.palette.buttonText
                     Accessible.name: qsTr("Search anime titles")
                     onAccepted: root.search()
                     onActiveFocusChanged: {
@@ -259,19 +273,27 @@ Item {
                         }
                     }
                     background: Rectangle {
-                        radius: Appearance.rounding.normal
-                        color: Appearance.colors.colLayer1
+                        radius: 13
+                        color: root.palette.panel
                         border.width: searchField.activeFocus ? 2 : 1
                         border.color: searchField.activeFocus
-                            ? Appearance.colors.colPrimary : Appearance.colors.colOutlineVariant
+                            ? root.palette.lavender : root.palette.outline
                     }
                 }
                 RippleButton {
                     implicitWidth: 44
                     implicitHeight: 44
-                    buttonRadius: Appearance.rounding.normal
+                    buttonRadius: 13
                     enabled: root.requestState !== "loading"
                     activeFocusOnTab: true
+                    border: true
+                    borderWidth: 2
+                    colBorder: activeFocus ? root.palette.mint : root.palette.outline
+                    colBackground: root.palette.surface
+                    colBackgroundHover: root.palette.cardHover
+                    colRipple: root.palette.lavender
+                    rippleEnabled: !Config.options.appearance.reducedMotion
+                    rippleDuration: 140
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Search anime")
                     onClicked: root.search()
@@ -279,24 +301,26 @@ Item {
                         anchors.centerIn: parent
                         text: root.requestState === "loading" ? "hourglass_top" : "search"
                         iconSize: Appearance.font.pixelSize.larger
-                        color: Appearance.colors.colOnLayer1
+                        color: root.palette.lavender
                         Accessible.ignored: true
                     }
                 }
             }
 
-            StyledText {
+            RowLayout {
                 Layout.fillWidth: true
-                text: root.requestState === "ready"
-                    ? qsTr("Results for “%1”").arg(root.submittedQuery)
-                    : root.requestState === "empty"
-                        ? qsTr("No matches for “%1”").arg(root.submittedQuery)
-                        : root.requestState === "idle" ? qsTr("Search to find your next watch") : ""
-                visible: text !== ""
-                elide: Text.ElideRight
-                maximumLineCount: 1
-                font.pixelSize: Appearance.font.pixelSize.small
-                color: Appearance.colors.colSubtext
+                visible: root.requestState === "ready" || root.requestState === "empty"
+                StyledText {
+                    Layout.fillWidth: true
+                    text: root.requestState === "ready"
+                        ? qsTr("Results for “%1”").arg(root.submittedQuery)
+                        : qsTr("No matches for “%1”").arg(root.submittedQuery)
+                    elide: Text.ElideRight
+                    maximumLineCount: 1
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    font.weight: Font.Medium
+                    color: root.palette.secondary
+                }
             }
 
             StyledText {
@@ -306,7 +330,7 @@ Item {
                 elide: Text.ElideRight
                 maximumLineCount: 1
                 font.pixelSize: Appearance.font.pixelSize.smaller
-                color: Appearance.colors.colError
+                color: root.palette.error
             }
 
             Item {
@@ -317,7 +341,7 @@ Item {
                     id: resultList
                     anchors.fill: parent
                     clip: true
-                    spacing: 5
+                    spacing: 9
                     animateAppearance: false
                     model: root.results
                     visible: root.requestState === "ready" && root.results.length > 0
@@ -328,6 +352,14 @@ Item {
                             visible: root.hasNextPage
                             enabled: !root.loadingMore
                             buttonRadius: Appearance.rounding.normal
+                            border: true
+                            borderWidth: 2
+                            colBorder: activeFocus ? root.palette.mint : "transparent"
+                            colBackground: root.palette.surface
+                            colBackgroundHover: root.palette.cardHover
+                            colRipple: root.palette.lavender
+                            rippleEnabled: !Config.options.appearance.reducedMotion
+                            rippleDuration: 140
                             activeFocusOnTab: true
                             Accessible.role: Accessible.Button
                             Accessible.name: root.loadingMore ? qsTr("Loading more results") : qsTr("Load more results")
@@ -337,76 +369,153 @@ Item {
                                 MaterialSymbol {
                                     text: root.loadingMore ? "hourglass_top" : "expand_more"
                                     iconSize: Appearance.font.pixelSize.normal
-                                    color: Appearance.colors.colPrimary
+                                    color: root.palette.lavender
                                     Accessible.ignored: true
                                 }
                                 StyledText {
                                     text: root.loadingMore ? qsTr("Loading more…") : qsTr("Load more")
                                     font.pixelSize: Appearance.font.pixelSize.small
-                                    color: Appearance.colors.colPrimary
+                                    color: root.palette.lavender
                                 }
                             }
                         }
                     }
-                    delegate: RippleButton {
-                        id: resultButton
+                    delegate: Item {
+                        id: resultCard
                         required property var modelData
+                        required property int index
                         width: resultList.width
-                        height: 76
-                        buttonRadius: Appearance.rounding.normal
-                        colBackground: Appearance.colors.colLayer1
-                        activeFocusOnTab: true
-                        Accessible.role: Accessible.Button
-                        Accessible.name: qsTr("Details for %1").arg(modelData.title)
-                        onClicked: root.openDetails(modelData)
-                        contentItem: RowLayout {
+                        height: index === 0 ? 164 : 120
+
+                        Rectangle {
                             anchors.fill: parent
-                            anchors.leftMargin: 8
-                            anchors.rightMargin: 10
+                            radius: 16
+                            color: resultCard.index === 0 ? root.palette.surface : root.palette.card
+                            border.width: 1
+                            border.color: root.palette.outline
+                        }
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: 10
                             spacing: 10
+
                             PosterThumbnail {
-                                Layout.preferredWidth: 43
-                                Layout.preferredHeight: 60
-                                Layout.alignment: Qt.AlignVCenter
-                                sourceUrl: resultButton.modelData.imageUrl
+                                Layout.preferredWidth: resultCard.index === 0 ? 92 : 66
+                                Layout.preferredHeight: resultCard.index === 0 ? 142 : 98
+                                sourceUrl: resultCard.modelData.imageUrl
+                                palette: root.palette
                             }
+
                             ColumnLayout {
                                 Layout.fillWidth: true
+                                Layout.fillHeight: true
                                 spacing: 3
+
                                 StyledText {
-                                    Layout.fillWidth: true
-                                    text: resultButton.modelData.title
-                                    elide: Text.ElideRight
-                                    maximumLineCount: 1
-                                    font.pixelSize: Appearance.font.pixelSize.normal
-                                    font.weight: Font.Medium
-                                    color: Appearance.colors.colOnLayer1
+                                    visible: resultCard.index === 0
+                                    text: qsTr("TOP MATCH")
+                                    font.pixelSize: Appearance.font.pixelSize.smaller
+                                    font.weight: Font.DemiBold
+                                    color: root.palette.mint
                                 }
+
                                 StyledText {
                                     Layout.fillWidth: true
-                                    text: [resultButton.modelData.type, resultButton.modelData.year || ""]
+                                    text: resultCard.modelData.title
+                                    elide: Text.ElideRight
+                                    maximumLineCount: 2
+                                    wrapMode: Text.WordWrap
+                                    font.pixelSize: resultCard.index === 0
+                                        ? Appearance.font.pixelSize.normal : Appearance.font.pixelSize.small
+                                    font.weight: Font.DemiBold
+                                    color: root.palette.text
+                                }
+
+                                StyledText {
+                                    Layout.fillWidth: true
+                                    text: [resultCard.modelData.type,
+                                        resultCard.modelData.year || "",
+                                        resultCard.modelData.episodes > 0
+                                            ? qsTr("%1 eps").arg(resultCard.modelData.episodes) : ""]
                                         .filter(value => !!value).join("  ·  ")
                                     elide: Text.ElideRight
                                     maximumLineCount: 1
-                                    font.pixelSize: Appearance.font.pixelSize.small
-                                    color: Appearance.colors.colSubtext
+                                    font.pixelSize: Appearance.font.pixelSize.smaller
+                                    color: root.palette.secondary
                                 }
+
                                 StyledText {
                                     Layout.fillWidth: true
-                                    text: resultButton.modelData.score > 0
-                                        ? qsTr("★ %1").arg(resultButton.modelData.score.toFixed(1))
-                                        : qsTr("Score unavailable")
+                                    text: resultCard.modelData.score > 0
+                                        ? qsTr("★ %1").arg(resultCard.modelData.score.toFixed(1))
+                                        : resultCard.modelData.status || qsTr("Score unavailable")
                                     elide: Text.ElideRight
                                     maximumLineCount: 1
-                                    font.pixelSize: Appearance.font.pixelSize.small
-                                    color: Appearance.colors.colPrimary
+                                    font.pixelSize: Appearance.font.pixelSize.smaller
+                                    color: root.palette.mint
                                 }
-                            }
-                            MaterialSymbol {
-                                text: "chevron_right"
-                                iconSize: Appearance.font.pixelSize.large
-                                color: Appearance.colors.colSubtext
-                                Accessible.ignored: true
+
+                                Item { Layout.fillHeight: true }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 6
+
+                                    RippleButton {
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: 34
+                                        buttonRadius: 10
+                                        colBackground: root.palette.lavender
+                                        colBackgroundHover: "#D2C1FF"
+                                        colRipple: root.palette.text
+                                        rippleEnabled: !Config.options.appearance.reducedMotion
+                                        rippleDuration: 140
+                                        border: true
+                                        borderWidth: 2
+                                        colBorder: activeFocus ? root.palette.mint : "transparent"
+                                        activeFocusOnTab: true
+                                        Accessible.role: Accessible.Button
+                                        Accessible.name: qsTr("Open %1 in ani-cli").arg(resultCard.modelData.title)
+                                        onClicked: root.launchRequested(resultCard.modelData.title)
+                                        contentItem: StyledText {
+                                            text: qsTr("Open in ani-cli")
+                                            horizontalAlignment: Text.AlignHCenter
+                                            verticalAlignment: Text.AlignVCenter
+                                            elide: Text.ElideRight
+                                            maximumLineCount: 1
+                                            font.pixelSize: Appearance.font.pixelSize.smaller
+                                            font.weight: Font.DemiBold
+                                            color: root.palette.buttonText
+                                        }
+                                    }
+
+                                    RippleButton {
+                                        implicitWidth: 68
+                                        Layout.preferredHeight: 34
+                                        buttonRadius: 10
+                                        border: true
+                                        borderWidth: 2
+                                        colBorder: activeFocus ? root.palette.mint : root.palette.outline
+                                        colBackground: root.palette.card
+                                        colBackgroundHover: root.palette.cardHover
+                                        colRipple: root.palette.lavender
+                                        rippleEnabled: !Config.options.appearance.reducedMotion
+                                        rippleDuration: 140
+                                        activeFocusOnTab: true
+                                        Accessible.role: Accessible.Button
+                                        Accessible.name: qsTr("View details for %1").arg(resultCard.modelData.title)
+                                        onClicked: root.openDetails(resultCard.modelData)
+                                        contentItem: StyledText {
+                                            text: qsTr("Details")
+                                            horizontalAlignment: Text.AlignHCenter
+                                            verticalAlignment: Text.AlignVCenter
+                                            font.pixelSize: Appearance.font.pixelSize.smaller
+                                            font.weight: Font.Medium
+                                            color: root.palette.secondary
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -424,7 +533,7 @@ Item {
                             : root.requestState === "empty" ? "search_off" : "travel_explore"
                         iconSize: 30
                         color: root.requestState === "error"
-                            ? Appearance.colors.colError : Appearance.colors.colPrimary
+                            ? root.palette.error : root.palette.lavender
                         Accessible.ignored: true
                     }
                     StyledText {
@@ -434,10 +543,10 @@ Item {
                             ? qsTr("Searching AniList…")
                             : root.requestState === "error" ? qsTr("Search unavailable")
                             : root.requestState === "empty" ? qsTr("No anime found")
-                            : qsTr("Find your next watch")
+                            : qsTr("Search anime on AniList")
                         font.pixelSize: Appearance.font.pixelSize.normal
                         font.weight: Font.Medium
-                        color: Appearance.colors.colOnLayer1
+                        color: root.palette.text
                     }
                     StyledText {
                         Layout.fillWidth: true
@@ -447,9 +556,9 @@ Item {
                             ? qsTr("Looking up titles and details.")
                             : root.requestState === "error" ? root.errorMessage
                             : root.requestState === "empty" ? qsTr("Try another title or spelling.")
-                            : qsTr("Type a title above, then press Enter.")
+                            : qsTr("Enter a title above to see live matches and episode details.")
                         font.pixelSize: Appearance.font.pixelSize.small
-                        color: Appearance.colors.colSubtext
+                        color: root.palette.secondary
                     }
                 }
             }
@@ -459,6 +568,7 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             anime: root.selectedAnime
+            palette: root.palette
             onBackRequested: root.closeDetails()
             onLaunchRequested: title => root.launchRequested(title)
         }

@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls.Basic
 import Quickshell
 import Quickshell.Io
 import qs.modules.common
@@ -27,6 +28,23 @@ AbstractBackgroundWidget {
     property double lastAniListRequestMs: 0
     property double aniListBlockedUntilMs: 0
     property double lastLaunchMs: 0
+    readonly property var palette: ({
+        ink: "#11101B",
+        panel: "#1A1928",
+        surface: "#242235",
+        card: "#211F30",
+        cardHover: "#302B42",
+        outline: "#655C77",
+        text: "#F5F1FB",
+        secondary: "#C7BEDA",
+        muted: "#B9AFCA",
+        lavender: "#C2AAFF",
+        mint: "#9DE3D4",
+        blush: "#F1AFCB",
+        error: "#FFB4AB",
+        buttonText: "#20172F"
+    })
+    readonly property bool detailOpen: tabBar.currentIndex === 0 && searchView.selectedAnime !== null
 
     function aniListDelayMs() {
         const minimumIntervalMs = 2200;
@@ -58,6 +76,15 @@ AbstractBackgroundWidget {
         if (historyEntries.length === 0)
             historyState = "loading";
         historyReader.running = true;
+    }
+
+    function refreshCurrentSection() {
+        if (tabBar.currentIndex === 0)
+            searchView.refreshSearch();
+        else if (tabBar.currentIndex === 1)
+            scheduleView.refreshSelectedDay();
+        else
+            refreshHistory();
     }
 
     function acceptHistory(raw) {
@@ -193,26 +220,33 @@ AbstractBackgroundWidget {
         id: card
         anchors.fill: parent
         widget: root
+        glass: false
+        color: root.palette.ink
+        tint: root.palette.ink
+        tintOpacity: 0.96
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 16
-            spacing: 10
+            anchors.margins: 14
+            spacing: 8
 
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 11
 
                 Rectangle {
-                    Layout.preferredWidth: 42
-                    Layout.preferredHeight: 42
-                    radius: Appearance.rounding.normal
-                    color: Appearance.colors.colPrimaryContainer
-                    MaterialSymbol {
+                    Layout.preferredWidth: 40
+                    Layout.preferredHeight: 40
+                    radius: 14
+                    color: root.palette.panel
+                    border.width: 1
+                    border.color: root.palette.outline
+                    StyledText {
                         anchors.centerIn: parent
-                        text: "movie_edit"
-                        iconSize: 22
-                        color: Appearance.colors.colOnPrimaryContainer
+                        text: "A"
+                        font.pixelSize: 23
+                        font.weight: Font.DemiBold
+                        color: root.palette.lavender
                         Accessible.ignored: true
                     }
                 }
@@ -223,41 +257,208 @@ AbstractBackgroundWidget {
                     StyledText {
                         text: qsTr("AniTrack")
                         font.pixelSize: Appearance.font.pixelSize.large
-                        font.weight: Font.Medium
-                        color: Appearance.colors.colOnLayer1
+                        font.weight: Font.DemiBold
+                        color: root.palette.text
                     }
                     StyledText {
-                        text: tabBar.currentIndex === 0
-                            ? qsTr("Discover something to watch")
+                        text: root.detailOpen ? qsTr("A closer look at this story")
+                            : tabBar.currentIndex === 0 ? qsTr("Find a story for tonight")
                             : tabBar.currentIndex === 1
                                 ? qsTr("Airing by weekday")
-                                : qsTr("%1 titles saved by ani-cli").arg(root.historyEntries.length)
+                                : qsTr("Your ani-cli watch history")
                         font.pixelSize: Appearance.font.pixelSize.small
-                        color: Appearance.colors.colSubtext
+                        color: root.palette.secondary
+                    }
+                }
+
+                RippleButton {
+                    implicitWidth: 38
+                    implicitHeight: 38
+                    buttonRadius: 12
+                    border: true
+                    borderWidth: 2
+                    colBorder: activeFocus ? root.palette.mint : root.palette.outline
+                    colBackground: root.palette.panel
+                    colBackgroundHover: root.palette.cardHover
+                    colRipple: root.palette.lavender
+                    rippleEnabled: !Config.options.appearance.reducedMotion
+                    rippleDuration: 140
+                    activeFocusOnTab: true
+                    enabled: tabBar.currentIndex === 0
+                        ? searchView.requestState !== "loading" && searchView.requestState !== "waiting"
+                        : tabBar.currentIndex === 1
+                            ? scheduleView.stateName !== "loading" && scheduleView.stateName !== "waiting"
+                            : !root.historyRefreshing
+                    Accessible.role: Accessible.Button
+                    Accessible.name: qsTr("Refresh current AniTrack section")
+                    onClicked: root.refreshCurrentSection()
+                    contentItem: MaterialSymbol {
+                        anchors.centerIn: parent
+                        text: tabBar.currentIndex === 0 && (searchView.requestState === "loading" || searchView.requestState === "waiting")
+                            || tabBar.currentIndex === 1 && (scheduleView.stateName === "loading" || scheduleView.stateName === "waiting")
+                            || tabBar.currentIndex === 2 && root.historyRefreshing
+                            ? "hourglass_top" : "refresh"
+                        iconSize: Appearance.font.pixelSize.normal
+                        color: root.palette.secondary
+                        Accessible.ignored: true
                     }
                 }
             }
 
-            SecondaryTabBar {
+            TabBar {
                 id: tabBar
                 Layout.fillWidth: true
+                Layout.preferredHeight: 39
+                spacing: 0
+                background: Item {
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        height: 1
+                        color: root.palette.outline
+                    }
+                }
                 onCurrentIndexChanged: {
                     if (currentIndex === 1)
                         scheduleView.loadSelectedDay();
                     else if (currentIndex === 2)
                         root.refreshHistory();
                 }
-                SecondaryTabButton {
-                    buttonIcon: "search"
-                    buttonText: qsTr("Discover")
+                TabButton {
+                    id: discoverTab
+                    width: tabBar.width / 3
+                    text: qsTr("Discover")
+                    activeFocusOnTab: true
+                    Accessible.name: text
+                    background: Item {
+                        Rectangle {
+                            anchors.fill: parent
+                            anchors.margins: 2
+                            radius: 8
+                            color: "transparent"
+                            border.width: discoverTab.activeFocus ? 1 : 0
+                            border.color: root.palette.mint
+                            Accessible.ignored: true
+                        }
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            height: 3
+                            color: discoverTab.checked ? root.palette.lavender : "transparent"
+                            Behavior on color {
+                                ColorAnimation {
+                                    duration: Config.options.appearance.reducedMotion ? 0 : 150
+                                    easing.type: Easing.OutCubic
+                                }
+                            }
+                        }
+                    }
+                    contentItem: StyledText {
+                        text: discoverTab.text
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        font.weight: discoverTab.checked ? Font.Medium : Font.Normal
+                        color: discoverTab.checked ? root.palette.text : root.palette.secondary
+                        Behavior on color {
+                            ColorAnimation {
+                                duration: Config.options.appearance.reducedMotion ? 0 : 150
+                                easing.type: Easing.OutCubic
+                            }
+                        }
+                    }
                 }
-                SecondaryTabButton {
-                    buttonIcon: "calendar_month"
-                    buttonText: qsTr("Airing")
+                TabButton {
+                    id: airingTab
+                    width: tabBar.width / 3
+                    text: qsTr("Airing")
+                    activeFocusOnTab: true
+                    Accessible.name: text
+                    background: Item {
+                        Rectangle {
+                            anchors.fill: parent
+                            anchors.margins: 2
+                            radius: 8
+                            color: "transparent"
+                            border.width: airingTab.activeFocus ? 1 : 0
+                            border.color: root.palette.mint
+                            Accessible.ignored: true
+                        }
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            height: 3
+                            color: airingTab.checked ? root.palette.lavender : "transparent"
+                            Behavior on color {
+                                ColorAnimation {
+                                    duration: Config.options.appearance.reducedMotion ? 0 : 150
+                                    easing.type: Easing.OutCubic
+                                }
+                            }
+                        }
+                    }
+                    contentItem: StyledText {
+                        text: airingTab.text
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        font.weight: airingTab.checked ? Font.Medium : Font.Normal
+                        color: airingTab.checked ? root.palette.text : root.palette.secondary
+                        Behavior on color {
+                            ColorAnimation {
+                                duration: Config.options.appearance.reducedMotion ? 0 : 150
+                                easing.type: Easing.OutCubic
+                            }
+                        }
+                    }
                 }
-                SecondaryTabButton {
-                    buttonIcon: "history"
-                    buttonText: qsTr("My History")
+                TabButton {
+                    id: historyTab
+                    width: tabBar.width / 3
+                    text: qsTr("My History")
+                    activeFocusOnTab: true
+                    Accessible.name: text
+                    background: Item {
+                        Rectangle {
+                            anchors.fill: parent
+                            anchors.margins: 2
+                            radius: 8
+                            color: "transparent"
+                            border.width: historyTab.activeFocus ? 1 : 0
+                            border.color: root.palette.mint
+                            Accessible.ignored: true
+                        }
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            height: 3
+                            color: historyTab.checked ? root.palette.lavender : "transparent"
+                            Behavior on color {
+                                ColorAnimation {
+                                    duration: Config.options.appearance.reducedMotion ? 0 : 150
+                                    easing.type: Easing.OutCubic
+                                }
+                            }
+                        }
+                    }
+                    contentItem: StyledText {
+                        text: historyTab.text
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        font.weight: historyTab.checked ? Font.Medium : Font.Normal
+                        color: historyTab.checked ? root.palette.text : root.palette.secondary
+                        Behavior on color {
+                            ColorAnimation {
+                                duration: Config.options.appearance.reducedMotion ? 0 : 150
+                                easing.type: Easing.OutCubic
+                            }
+                        }
+                    }
                 }
             }
 
@@ -267,9 +468,11 @@ AbstractBackgroundWidget {
                 currentIndex: tabBar.currentIndex
 
                 AnimeSearchView {
+                    id: searchView
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     apiCoordinator: root
+                    palette: root.palette
                     onLaunchRequested: title => root.openAniCli(title)
                 }
 
@@ -278,6 +481,7 @@ AbstractBackgroundWidget {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     apiCoordinator: root
+                    palette: root.palette
                     onLaunchRequested: title => root.openAniCli(title)
                 }
 
@@ -289,6 +493,7 @@ AbstractBackgroundWidget {
                     errorMessage: root.historyError
                     refreshing: root.historyRefreshing
                     apiCoordinator: root
+                    palette: root.palette
                     onRefreshRequested: root.refreshHistory()
                     onContinueRequested: root.continueAniCliHistory()
                     onTitleRequested: title => root.openAniCli(title)
@@ -300,7 +505,7 @@ AbstractBackgroundWidget {
                 Layout.preferredHeight: 34
                 radius: Appearance.rounding.small
                 color: root.launchFailed
-                    ? Appearance.colors.colErrorContainer : Appearance.colors.colLayer1
+                    ? "#3A2028" : root.palette.surface
                 visible: root.launchStatus !== ""
                 RowLayout {
                     anchors.fill: parent
@@ -311,7 +516,7 @@ AbstractBackgroundWidget {
                         text: root.launchFailed ? "error_outline" : "info"
                         iconSize: Appearance.font.pixelSize.normal
                         color: root.launchFailed
-                            ? Appearance.colors.colError : Appearance.colors.colPrimary
+                            ? root.palette.error : root.palette.mint
                         Accessible.ignored: true
                     }
                     StyledText {
@@ -320,9 +525,53 @@ AbstractBackgroundWidget {
                         elide: Text.ElideRight
                         maximumLineCount: 1
                         font.pixelSize: Appearance.font.pixelSize.small
-                        color: root.launchFailed
-                            ? Appearance.colors.colOnErrorContainer : Appearance.colors.colOnLayer1
+                        color: root.palette.text
                     }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 26
+                spacing: 8
+
+                RippleButton {
+                    implicitWidth: 122
+                    implicitHeight: 26
+                    buttonRadius: 7
+                    border: true
+                    borderWidth: 2
+                    colBorder: activeFocus ? root.palette.mint : "transparent"
+                    colBackground: "transparent"
+                    colBackgroundHover: root.palette.surface
+                    colRipple: root.palette.lavender
+                    rippleEnabled: !Config.options.appearance.reducedMotion
+                    rippleDuration: 140
+                    activeFocusOnTab: true
+                    Accessible.role: Accessible.Link
+                    Accessible.name: qsTr("Powered by AniList; open AniList website")
+                    onClicked: Qt.openUrlExternally("https://anilist.co")
+                    contentItem: StyledText {
+                        text: qsTr("Powered by AniList")
+                        font.pixelSize: Appearance.font.pixelSize.smaller
+                        color: root.palette.secondary
+                    }
+                }
+
+                Item { Layout.fillWidth: true }
+
+                StyledText {
+                    text: root.detailOpen ? ""
+                        : tabBar.currentIndex === 0
+                            ? (searchView.requestState === "ready" || searchView.requestState === "empty"
+                                ? qsTr("%n titles", "AniList result count", searchView.results.length) : "")
+                            : tabBar.currentIndex === 1
+                                ? (scheduleView.stateName === "ready" || scheduleView.stateName === "empty"
+                                    ? qsTr("%n airing", "Airing schedule count", scheduleView.entries.length) : "")
+                                : (root.historyState === "ready" || root.historyState === "empty" || root.historyState === "missing"
+                                    ? qsTr("%n saved", "ani-cli history count", root.historyEntries.length) : "")
+                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    color: root.palette.muted
                 }
             }
         }

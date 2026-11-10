@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import qs
 import qs.modules.common
 import qs.modules.common.widgets
 
@@ -20,6 +21,12 @@ Item {
     property var artworkQueue: []
     property var artworkRequest: null
     property string activeArtworkKey: ""
+    property var palette: ({
+        panel: "#1A1928", surface: "#242235", card: "#211F30",
+        cardHover: "#302B42", outline: "#655C77", text: "#F5F1FB",
+        secondary: "#C7BEDA", muted: "#B9AFCA", lavender: "#C2AAFF",
+        mint: "#9DE3D4", error: "#FFB4AB", buttonText: "#20172F"
+    })
 
     function normalizedTitle(value) {
         return String(value || "").normalize("NFKC").toLowerCase()
@@ -178,7 +185,7 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: 9
+        spacing: 8
 
         RowLayout {
             Layout.fillWidth: true
@@ -188,47 +195,37 @@ Item {
                 Layout.fillWidth: true
                 spacing: 2
                 StyledText {
-                    text: qsTr("Saved episodes")
+                    text: qsTr("Pick up where you left off")
                     font.pixelSize: Appearance.font.pixelSize.normal
-                    font.weight: Font.Medium
-                    color: Appearance.colors.colOnLayer1
+                    font.weight: Font.DemiBold
+                    color: root.palette.text
                 }
                 StyledText {
-                    text: qsTr("Read from ani-cli's local history")
+                    text: qsTr("Saved locally by ani-cli")
                     font.pixelSize: Appearance.font.pixelSize.small
-                    color: Appearance.colors.colSubtext
+                    color: root.palette.secondary
                 }
                 StyledText {
                     visible: root.refreshing && root.stateName === "ready"
                     text: qsTr("Updating…")
                     font.pixelSize: Appearance.font.pixelSize.smaller
-                    color: Appearance.colors.colPrimary
-                }
-            }
-
-            RippleButton {
-                implicitWidth: 36
-                implicitHeight: 36
-                buttonRadius: Appearance.rounding.small
-                activeFocusOnTab: true
-                Accessible.role: Accessible.Button
-                Accessible.name: qsTr("Refresh ani-cli history")
-                onClicked: root.refreshRequested()
-                contentItem: MaterialSymbol {
-                    anchors.centerIn: parent
-                    text: "refresh"
-                    iconSize: Appearance.font.pixelSize.normal
-                    color: Appearance.colors.colOnLayer1
-                    Accessible.ignored: true
+                    color: root.palette.mint
                 }
             }
         }
 
         RippleButton {
             Layout.fillWidth: true
-            Layout.preferredHeight: 40
-            buttonRadius: Appearance.rounding.normal
-            colBackground: Appearance.colors.colPrimaryContainer
+            Layout.preferredHeight: 42
+            buttonRadius: 12
+            colBackground: root.palette.lavender
+            colBackgroundHover: "#D2C1FF"
+            colRipple: root.palette.text
+            rippleEnabled: !Config.options.appearance.reducedMotion
+            rippleDuration: 140
+            border: true
+            borderWidth: 2
+            colBorder: activeFocus ? root.palette.mint : "transparent"
             enabled: root.stateName === "ready"
             activeFocusOnTab: true
             Accessible.role: Accessible.Button
@@ -241,20 +238,20 @@ Item {
                 MaterialSymbol {
                     text: "play_arrow"
                     iconSize: Appearance.font.pixelSize.large
-                    color: Appearance.colors.colOnPrimaryContainer
+                    color: root.palette.buttonText
                     Accessible.ignored: true
                 }
                 StyledText {
                     Layout.fillWidth: true
                     text: qsTr("Continue from history")
                     font.pixelSize: Appearance.font.pixelSize.small
-                    font.weight: Font.Medium
-                    color: Appearance.colors.colOnPrimaryContainer
+                    font.weight: Font.DemiBold
+                    color: root.palette.buttonText
                 }
                 MaterialSymbol {
                     text: "open_in_new"
                     iconSize: Appearance.font.pixelSize.small
-                    color: Appearance.colors.colOnPrimaryContainer
+                    color: root.palette.buttonText
                     Accessible.ignored: true
                 }
             }
@@ -268,7 +265,7 @@ Item {
                 id: historyList
                 anchors.fill: parent
                 clip: true
-                spacing: 5
+                spacing: 9
                 animateAppearance: false
                 model: root.entries
                 visible: root.stateName === "ready" && root.entries.length > 0
@@ -277,55 +274,77 @@ Item {
                     id: historyRow
                     required property var modelData
                     width: historyList.width
-                    height: 66
+                    height: 100
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: 15
+                        color: root.palette.card
+                        border.width: 1
+                        border.color: root.palette.outline
+                    }
 
                     RowLayout {
                         anchors.fill: parent
-                        spacing: 9
+                        anchors.margins: 9
+                        spacing: 10
 
                         PosterThumbnail {
-                            Layout.preferredWidth: 42
-                            Layout.preferredHeight: 56
+                            Layout.preferredWidth: 60
+                            Layout.preferredHeight: 80
                             Layout.alignment: Qt.AlignVCenter
                             sourceUrl: root.artworkFor(historyRow.modelData.title)
+                            palette: root.palette
                         }
 
                         ColumnLayout {
                             Layout.fillWidth: true
+                            Layout.fillHeight: true
                             spacing: 3
                             StyledText {
                                 Layout.fillWidth: true
                                 text: historyRow.modelData.title || qsTr("Untitled anime")
                                 elide: Text.ElideRight
-                                maximumLineCount: 1
-                                font.pixelSize: Appearance.font.pixelSize.normal
-                                font.weight: Font.Medium
-                                color: Appearance.colors.colOnLayer1
+                                maximumLineCount: 2
+                                wrapMode: Text.WordWrap
+                                font.pixelSize: Appearance.font.pixelSize.small
+                                font.weight: Font.DemiBold
+                                color: root.palette.text
                             }
+                            Item { Layout.fillHeight: true }
                             StyledText {
                                 Layout.fillWidth: true
-                                text: qsTr("Episode %1 saved by ani-cli").arg(historyRow.modelData.episode || "—")
+                                text: qsTr("Episode %1 · saved by ani-cli").arg(historyRow.modelData.episode || "—")
                                 elide: Text.ElideRight
                                 maximumLineCount: 1
-                                font.pixelSize: Appearance.font.pixelSize.small
-                                color: Appearance.colors.colSubtext
+                                font.pixelSize: Appearance.font.pixelSize.smaller
+                                color: root.palette.secondary
                             }
                         }
 
                         RippleButton {
-                            implicitWidth: 36
-                            implicitHeight: 36
-                            buttonRadius: Appearance.rounding.small
+                            implicitWidth: 72
+                            implicitHeight: 34
+                            buttonRadius: 10
+                            colBackground: root.palette.lavender
+                            colBackgroundHover: "#D2C1FF"
+                            colRipple: root.palette.text
+                            rippleEnabled: !Config.options.appearance.reducedMotion
+                            rippleDuration: 140
+                            border: true
+                            borderWidth: 2
+                            colBorder: activeFocus ? root.palette.mint : "transparent"
                             activeFocusOnTab: true
                             Accessible.role: Accessible.Button
-                            Accessible.name: qsTr("Search %1 in ani-cli").arg(historyRow.modelData.title)
+                            Accessible.name: qsTr("Open %1 in ani-cli").arg(historyRow.modelData.title)
                             onClicked: root.titleRequested(historyRow.modelData.title)
-                            contentItem: MaterialSymbol {
-                                anchors.centerIn: parent
-                                text: "search"
-                                iconSize: Appearance.font.pixelSize.normal
-                                color: Appearance.colors.colPrimary
-                                Accessible.ignored: true
+                            contentItem: StyledText {
+                                text: qsTr("Open")
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                                font.pixelSize: Appearance.font.pixelSize.smaller
+                                font.weight: Font.DemiBold
+                                color: root.palette.buttonText
                             }
                         }
                     }
@@ -345,7 +364,7 @@ Item {
                         : "history"
                     iconSize: 30
                     color: root.stateName === "error"
-                        ? Appearance.colors.colError : Appearance.colors.colPrimary
+                        ? root.palette.error : root.palette.lavender
                     Accessible.ignored: true
                 }
 
@@ -358,7 +377,7 @@ Item {
                         : qsTr("Nothing saved yet")
                     font.pixelSize: Appearance.font.pixelSize.normal
                     font.weight: Font.Medium
-                    color: Appearance.colors.colOnLayer1
+                    color: root.palette.text
                 }
 
                 StyledText {
@@ -370,7 +389,7 @@ Item {
                         : root.stateName === "error" ? root.errorMessage
                         : qsTr("ani-cli has not saved any episode entries yet.")
                     font.pixelSize: Appearance.font.pixelSize.small
-                    color: Appearance.colors.colSubtext
+                    color: root.palette.secondary
                 }
             }
         }
@@ -382,7 +401,7 @@ Item {
             elide: Text.ElideRight
             maximumLineCount: 1
             font.pixelSize: Appearance.font.pixelSize.smaller
-            color: Appearance.colors.colError
+            color: root.palette.error
         }
     }
 }

@@ -7,11 +7,12 @@ Rectangle {
     id: root
 
     property string sourceUrl: ""
+    property var palette: ({ panel: "#1A1928", outline: "#655C77", muted: "#B9AFCA" })
 
     radius: Appearance.rounding.small
-    color: Appearance.colors.colLayer1
+    color: root.palette.panel
     border.width: 1
-    border.color: Appearance.colors.colOutlineVariant
+    border.color: root.palette.outline
 
     Image {
         id: poster
@@ -38,7 +39,7 @@ Rectangle {
         anchors.centerIn: parent
         text: "movie"
         iconSize: Math.min(root.width, root.height) * 0.42
-        color: Appearance.colors.colSubtext
+        color: root.palette.muted
         visible: poster.status !== Image.Ready
         Accessible.ignored: true
     }

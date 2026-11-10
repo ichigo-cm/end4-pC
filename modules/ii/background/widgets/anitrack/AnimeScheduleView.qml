@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import qs
 import qs.modules.common
 import qs.modules.common.widgets
 
@@ -22,6 +23,12 @@ Item {
     property bool queuedAppend: false
     property bool hasNextPage: false
     property bool loadingMore: false
+    property var palette: ({
+        panel: "#1A1928", surface: "#242235", card: "#211F30",
+        cardHover: "#302B42", outline: "#655C77", text: "#F5F1FB",
+        secondary: "#C7BEDA", muted: "#B9AFCA", lavender: "#C2AAFF",
+        mint: "#9DE3D4", error: "#FFB4AB", buttonText: "#20172F"
+    })
 
     readonly property var weekdays: [
         {key: "monday", name: qsTr("Monday"), shortName: qsTr("Mon")},
@@ -251,7 +258,7 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: 9
+        spacing: 8
 
         RowLayout {
             Layout.fillWidth: true
@@ -262,31 +269,13 @@ Item {
                 text: root.dayLabel(root.selectedDay)
                 font.pixelSize: Appearance.font.pixelSize.normal
                 font.weight: Font.Medium
-                color: Appearance.colors.colOnLayer1
+                color: root.palette.text
             }
 
             StyledText {
                 text: qsTr("Local airing times")
                 font.pixelSize: Appearance.font.pixelSize.smaller
-                color: Appearance.colors.colSubtext
-            }
-
-            RippleButton {
-                implicitWidth: 36
-                implicitHeight: 36
-                buttonRadius: Appearance.rounding.small
-                activeFocusOnTab: true
-                Accessible.role: Accessible.Button
-                Accessible.name: qsTr("Refresh %1 schedule").arg(root.dayLabel(root.selectedDay))
-                onClicked: root.refreshSelectedDay()
-                contentItem: MaterialSymbol {
-                    anchors.centerIn: parent
-                    text: root.stateName === "loading" || root.stateName === "waiting" || root.loadingMore
-                        ? "hourglass_top" : "refresh"
-                    iconSize: Appearance.font.pixelSize.normal
-                    color: Appearance.colors.colPrimary
-                    Accessible.ignored: true
-                }
+                color: root.palette.secondary
             }
         }
 
@@ -301,9 +290,17 @@ Item {
                     required property var modelData
                     Layout.fillWidth: true
                     Layout.preferredHeight: 35
-                    buttonRadius: Appearance.rounding.small
+                    buttonRadius: 10
+                    border: true
+                    borderWidth: 2
+                    colBorder: activeFocus ? root.palette.mint : "transparent"
                     colBackground: modelData.key === root.selectedDay
-                        ? Appearance.colors.colPrimaryContainer : Appearance.colors.colLayer1
+                        ? root.palette.lavender : root.palette.panel
+                    colBackgroundHover: modelData.key === root.selectedDay
+                        ? "#D2C1FF" : root.palette.cardHover
+                    colRipple: root.palette.text
+                    rippleEnabled: !Config.options.appearance.reducedMotion
+                    rippleDuration: 140
                     activeFocusOnTab: true
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Show %1 schedule").arg(modelData.name)
@@ -316,7 +313,7 @@ Item {
                         font.pixelSize: Appearance.font.pixelSize.smaller
                         font.weight: dayButton.modelData.key === root.selectedDay ? Font.Medium : Font.Normal
                         color: dayButton.modelData.key === root.selectedDay
-                            ? Appearance.colors.colOnPrimaryContainer : Appearance.colors.colOnLayer1
+                            ? root.palette.buttonText : root.palette.secondary
                     }
                 }
             }
@@ -333,13 +330,21 @@ Item {
                 elide: Text.ElideRight
                 maximumLineCount: 1
                 font.pixelSize: Appearance.font.pixelSize.smaller
-                color: Appearance.colors.colError
+                color: root.palette.error
             }
 
             RippleButton {
                 implicitWidth: 64
                 implicitHeight: 30
                 buttonRadius: Appearance.rounding.small
+                border: true
+                borderWidth: 2
+                colBorder: activeFocus ? root.palette.mint : "transparent"
+                colBackground: root.palette.surface
+                colBackgroundHover: root.palette.cardHover
+                colRipple: root.palette.lavender
+                rippleEnabled: !Config.options.appearance.reducedMotion
+                rippleDuration: 140
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Retry schedule request")
@@ -349,7 +354,7 @@ Item {
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                     font.pixelSize: Appearance.font.pixelSize.smaller
-                    color: Appearance.colors.colPrimary
+                    color: root.palette.lavender
                 }
             }
         }
@@ -362,7 +367,7 @@ Item {
                 id: scheduleList
                 anchors.fill: parent
                 clip: true
-                spacing: 5
+                spacing: 9
                 animateAppearance: false
                 model: root.entries
                 visible: root.stateName === "ready" && root.entries.length > 0
@@ -374,6 +379,14 @@ Item {
                         visible: root.hasNextPage
                         enabled: !root.loadingMore
                         buttonRadius: Appearance.rounding.normal
+                        border: true
+                        borderWidth: 2
+                        colBorder: activeFocus ? root.palette.mint : "transparent"
+                        colBackground: root.palette.surface
+                        colBackgroundHover: root.palette.cardHover
+                        colRipple: root.palette.lavender
+                        rippleEnabled: !Config.options.appearance.reducedMotion
+                        rippleDuration: 140
                         activeFocusOnTab: true
                         Accessible.role: Accessible.Button
                         Accessible.name: root.loadingMore ? qsTr("Loading more scheduled anime") : qsTr("Load more scheduled anime")
@@ -383,13 +396,13 @@ Item {
                             MaterialSymbol {
                                 text: root.loadingMore ? "hourglass_top" : "expand_more"
                                 iconSize: Appearance.font.pixelSize.normal
-                                color: Appearance.colors.colPrimary
+                                color: root.palette.lavender
                                 Accessible.ignored: true
                             }
                             StyledText {
                                 text: root.loadingMore ? qsTr("Loading more…") : qsTr("Load more")
                                 font.pixelSize: Appearance.font.pixelSize.small
-                                color: Appearance.colors.colPrimary
+                                color: root.palette.lavender
                             }
                         }
                     }
@@ -399,9 +412,16 @@ Item {
                     id: scheduleButton
                     required property var modelData
                     width: scheduleList.width
-                    height: 78
-                    buttonRadius: Appearance.rounding.normal
-                    colBackground: Appearance.colors.colLayer1
+                    height: 124
+                    buttonRadius: 16
+                    border: true
+                    borderWidth: 2
+                    colBorder: activeFocus ? root.palette.mint : root.palette.outline
+                    colBackground: root.palette.card
+                    colBackgroundHover: root.palette.cardHover
+                    colRipple: root.palette.lavender
+                    rippleEnabled: !Config.options.appearance.reducedMotion
+                    rippleDuration: 140
                     activeFocusOnTab: true
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Open %1 in ani-cli, airing %2").arg(modelData.title).arg(modelData.broadcastTime)
@@ -409,27 +429,30 @@ Item {
 
                     contentItem: RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 7
-                        anchors.rightMargin: 9
-                        spacing: 9
+                        anchors.leftMargin: 10
+                        anchors.rightMargin: 11
+                        spacing: 11
 
                         PosterThumbnail {
-                            Layout.preferredWidth: 46
-                            Layout.preferredHeight: 62
+                            Layout.preferredWidth: 74
+                            Layout.preferredHeight: 102
                             sourceUrl: scheduleButton.modelData.imageUrl
+                            palette: root.palette
                         }
 
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 2
+                            Layout.fillHeight: true
+                            spacing: 4
                             StyledText {
                                 Layout.fillWidth: true
                                 text: scheduleButton.modelData.title
                                 elide: Text.ElideRight
-                                maximumLineCount: 1
-                                font.pixelSize: Appearance.font.pixelSize.small
-                                font.weight: Font.Medium
-                                color: Appearance.colors.colOnLayer1
+                                maximumLineCount: 2
+                                wrapMode: Text.WordWrap
+                                font.pixelSize: Appearance.font.pixelSize.normal
+                                font.weight: Font.DemiBold
+                                color: root.palette.text
                             }
                             StyledText {
                                 Layout.fillWidth: true
@@ -437,23 +460,33 @@ Item {
                                 elide: Text.ElideRight
                                 maximumLineCount: 1
                                 font.pixelSize: Appearance.font.pixelSize.smaller
-                                color: Appearance.colors.colSubtext
+                                color: root.palette.secondary
                             }
+                            Item { Layout.fillHeight: true }
                             StyledText {
                                 Layout.fillWidth: true
                                 text: scheduleButton.modelData.broadcastTime
                                 elide: Text.ElideRight
                                 maximumLineCount: 1
-                                font.pixelSize: Appearance.font.pixelSize.smaller
-                                color: Appearance.colors.colPrimary
+                                font.pixelSize: Appearance.font.pixelSize.small
+                                font.weight: Font.Medium
+                                color: root.palette.mint
                             }
-                        }
-
-                        MaterialSymbol {
-                            text: "play_circle"
-                            iconSize: Appearance.font.pixelSize.larger
-                            color: Appearance.colors.colPrimary
-                            Accessible.ignored: true
+                            RowLayout {
+                                spacing: 4
+                                MaterialSymbol {
+                                    text: "play_arrow"
+                                    iconSize: Appearance.font.pixelSize.small
+                                    color: root.palette.lavender
+                                    Accessible.ignored: true
+                                }
+                                StyledText {
+                                    text: qsTr("Open in ani-cli")
+                                    font.pixelSize: Appearance.font.pixelSize.smaller
+                                    font.weight: Font.Medium
+                                    color: root.palette.lavender
+                                }
+                            }
                         }
                     }
                 }
@@ -471,7 +504,7 @@ Item {
                         : root.stateName === "loading" || root.stateName === "waiting" ? "hourglass_top"
                         : root.stateName === "empty" ? "event_busy" : "calendar_month"
                     iconSize: 30
-                    color: root.stateName === "error" ? Appearance.colors.colError : Appearance.colors.colSubtext
+                    color: root.stateName === "error" ? root.palette.error : root.palette.lavender
                     Accessible.ignored: true
                 }
 
@@ -484,7 +517,7 @@ Item {
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.Wrap
                     font.pixelSize: Appearance.font.pixelSize.small
-                    color: root.stateName === "error" ? Appearance.colors.colError : Appearance.colors.colSubtext
+                    color: root.stateName === "error" ? root.palette.error : root.palette.secondary
                 }
 
                 RippleButton {
@@ -492,7 +525,15 @@ Item {
                     visible: root.stateName === "error" || root.stateName === "empty"
                     implicitWidth: 100
                     implicitHeight: 36
-                    buttonRadius: Appearance.rounding.normal
+                    buttonRadius: 11
+                    border: true
+                    borderWidth: 2
+                    colBorder: activeFocus ? root.palette.mint : "transparent"
+                    colBackground: root.palette.surface
+                    colBackgroundHover: root.palette.cardHover
+                    colRipple: root.palette.lavender
+                    rippleEnabled: !Config.options.appearance.reducedMotion
+                    rippleDuration: 140
                     activeFocusOnTab: true
                     Accessible.role: Accessible.Button
                     Accessible.name: root.stateName === "error" ? qsTr("Retry schedule") : qsTr("Refresh schedule")
@@ -502,7 +543,7 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                         font.pixelSize: Appearance.font.pixelSize.small
-                        color: Appearance.colors.colPrimary
+                        color: root.palette.lavender
                     }
                 }
             }
