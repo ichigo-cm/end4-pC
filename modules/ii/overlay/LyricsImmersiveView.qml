@@ -43,6 +43,11 @@ Item {
         sourceComponent: PanelWindow {
             id: immersiveWindow
             readonly property color artAccent: colorQuantizer?.colors[0] ?? Appearance.colors.colPrimary
+            readonly property color lyricAccent: {
+                const extracted = Qt.color(artAccent)
+                const source = extracted.hsvSaturation < 0.12 ? Appearance.colors.colPrimary : artAccent
+                return ColorUtils.colorWithLightness(source, 0.8)
+            }
             visible: true
             exclusionMode: ExclusionMode.Ignore
             WlrLayershell.namespace: "quickshell:immersiveLyrics"
@@ -83,7 +88,7 @@ Item {
 
             ColorQuantizer {
                 id: colorQuantizer
-                source: albumArtBackground
+                source: coverImage
                 depth: 0
                 rescaleSize: 1
             }
@@ -236,7 +241,7 @@ Item {
                                 anchors.margins: 32
                                 textAlignment: Text.AlignHCenter
                                 textColor: Qt.rgba(1, 1, 1, 0.75)
-                                activeColor: "white"
+                                activeColor: immersiveWindow.lyricAccent
                                 dimColor: Qt.rgba(1, 1, 1, 0.38)
                                 vocalColor: Qt.rgba(1, 1, 1, 0.88)
                                 fontScale: Math.max(1.25, Math.min(1.75, parent.height / 620))

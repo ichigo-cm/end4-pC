@@ -15,6 +15,8 @@ Item {
     property color indicatorColor: Appearance.colors.colPrimaryContainer
     property color indicatorShapeColor: Appearance.colors.colOnPrimaryContainer
     property color vocalColor: dimColor
+    property color renderedAccent: root.activeColor
+    property color renderedTextColor: root.textColor
     property int textAlignment: Text.AlignLeft
     property real fontScale: 1.0
     property bool animateTransitions: true
@@ -22,6 +24,15 @@ Item {
     readonly property string lyricMode: LyricsService.lyricMode
     readonly property bool karaokeEnabled: LyricsService.karaokeMotion
     readonly property bool lineMotionEnabled: root.animateTransitions && root.lyricMode !== "static" && !Config.options.appearance.reducedMotion
+
+    Behavior on renderedAccent {
+        enabled: root.lineMotionEnabled
+        ColorAnimation { duration: 180; easing.type: Easing.OutCubic }
+    }
+    Behavior on renderedTextColor {
+        enabled: root.lineMotionEnabled
+        ColorAnimation { duration: 180; easing.type: Easing.OutCubic }
+    }
 
     implicitWidth: 200
     implicitHeight: 200
@@ -111,7 +122,7 @@ Item {
                         wrapMode: Text.WordWrap
                         text: {
                             if (lyricSlot.index === LyricsService.before && root.karaokeEnabled)
-                                return LyricsService.karaokeMarkup(root.activeColor, root.textColor)
+                                return LyricsService.karaokeMarkup(root.renderedAccent, root.renderedTextColor)
                             return lyricSlot.sourceLineText
                         }
                         textFormat: lyricSlot.index === LyricsService.before && root.karaokeEnabled ? Text.StyledText : Text.PlainText
@@ -127,7 +138,7 @@ Item {
                             if (lyricSlot.dist === 2) return 0.35
                             return 0.15
                         }
-                        color: lyricSlot.dist === 0 ? root.activeColor : root.textColor
+                        color: lyricSlot.dist === 0 ? root.renderedAccent : root.renderedTextColor
                     }
 
                     StyledText {
@@ -153,14 +164,36 @@ Item {
                         Accessible.name: lyricSlot.accessibleVocalLineText
                     }
 
-                    transform: Translate { id: lineSlide }
+                    transform: [
+                        Translate { id: lineSlide },
+                        Scale {
+                            id: activeLineScale
+                            origin.x: lyricSlot.width / 2
+                            origin.y: lyricSlot.height / 2
+                        }
+                    ]
                     onSourceLineTextChanged: {
-                        if (root.lineMotionEnabled && sourceLineText.length > 0) slideAnim.restart()
+                        if (!root.lineMotionEnabled || sourceLineText.length === 0) return
+                        slideAnim.restart()
+                        if (lyricSlot.index === LyricsService.before) activeLinePulse.restart()
                     }
                     SequentialAnimation {
                         id: slideAnim
                         ScriptAction { script: lineSlide.y = 10 * root.fontScale }
                         NumberAnimation { target: lineSlide; property: "y"; to: 0; duration: 180; easing.type: Easing.OutCubic }
+                    }
+                    SequentialAnimation {
+                        id: activeLinePulse
+                        ScriptAction {
+                            script: {
+                                activeLineScale.xScale = 1.025
+                                activeLineScale.yScale = 1.025
+                            }
+                        }
+                        ParallelAnimation {
+                            NumberAnimation { target: activeLineScale; property: "xScale"; to: 1; duration: 180; easing.type: Easing.OutCubic }
+                            NumberAnimation { target: activeLineScale; property: "yScale"; to: 1; duration: 180; easing.type: Easing.OutCubic }
+                        }
                     }
                     Behavior on opacity {
                         enabled: root.lineMotionEnabled
