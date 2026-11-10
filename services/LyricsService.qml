@@ -475,13 +475,14 @@ Singleton {
         const title = root.activePlayer?.trackTitle ?? ""
         const artist = root.activePlayer?.trackArtist ?? ""
         const duration = root.activePlayer?.length ?? 0
+        const album = root.activePlayer?.trackAlbum ?? ""
 
         if (!title || !artist) { root.status = "no_info"; return }
 
         lyricsProc.command = [
             "python3",
             `${Directories.scriptPath}/lyrics/lyrics.py`,
-            title, artist, String(Math.floor(duration))
+            title, artist, String(Math.floor(duration)), album
         ]
         lyricsProc.running = true
     }
@@ -500,6 +501,7 @@ Singleton {
         target: root.activePlayer
         function onTrackTitleChanged() { root.restartLyrics() }
         function onTrackArtistChanged() { restartDebounce.restart() }
+        function onTrackAlbumChanged() { restartDebounce.restart() }
         function onPlaybackStateChanged() { root.resync() }
     }
 

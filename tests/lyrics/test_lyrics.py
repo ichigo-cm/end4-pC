@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import importlib.util
+import io
+import json
 import subprocess
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+import urllib.parse
 from unittest.mock import patch
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts/lyrics/lyrics.py"
@@ -127,6 +130,22 @@ class LyricsTimingTests(unittest.TestCase):
             "time": 1.2, "end": 1.5, "text": "echo",
         }])
 
+    def test_better_lyrics_namespaced_x_bg_role_is_separated_from_lead(self) -> None:
+        source = '''
+        <tt xmlns:ttm="http://www.w3.org/ns/ttml#metadata">
+          <body><p begin="00:00:01.000">
+            <span begin="00:00:01.000" end="00:00:01.500">Lead </span>
+            <span ttm:role="x-bg"><span begin="00:00:01.500" end="00:00:02.000">echo</span></span>
+          </p></body>
+        </tt>
+        '''
+        lines = lyrics_parser._parse_ttml(source)
+        self.assertEqual(lines[0]["text"], "Lead")
+        self.assertEqual(lines[0]["fullText"], "Lead echo")
+        self.assertEqual(lines[0]["vocalLayers"][0]["type"], "background")
+        self.assertEqual(lines[0]["cues"], [{"time": 1.0, "end": 1.5, "text": "Lead"}])
+        self.assertEqual(lines[0]["fullCues"][-1], {"time": 1.5, "end": 2.0, "text": "echo"})
+
     def test_dependency_free_romanization_handles_kana_and_hangul(self) -> None:
         self.assertEqual(lyrics_parser._romanize_kana("かな"), "kana")
         self.assertEqual(lyrics_parser._romanize_hangul("안녕"), "annyeong")
@@ -143,6 +162,127 @@ class LyricsTimingTests(unittest.TestCase):
         self.assertEqual(lines[0]["romanizedText"], "kana")
         self.assertEqual(lines[0]["romanizedFullText"], "kana")
         run.assert_called_once()
+
+    def test_lyricsfile_word_timing_becomes_timed_cues(self) -> None:
+        source = '''
+version: "1.0"
+metadata:
+  title: "Still Alive"
+lines: # word-synced lines
+  - text: "This was a triumph." # preserve explicit line text
+    start_ms: 290
+    end_ms: 3840
+    words: # per-word time ranges
+      - text: "This "
+        start_ms: 290
+        end_ms: 536
+      - text: "was "
+        start_ms: 536
+        end_ms: 784
+      - text: "a "
+        start_ms: 784
+        end_ms: 923
+      - text: triumph.
+        start_ms: 923
+        end_ms: 3840
+'''
+        lines = lyrics_parser._parse_lyricsfile(source)
+        self.assertEqual(len(lines), 1)
+        self.assertEqual(lines[0]["time"], 0.29)
+        self.assertEqual(lines[0]["text"], "This was a triumph.")
+        self.assertEqual(lines[0]["cues"][0], {"time": 0.29, "end": 0.536, "text": "This "})
+        self.assertEqual(lines[0]["cues"][-1], {"time": 0.923, "end": 3.84, "text": "triumph."})
+
+    def test_lyricsfile_parser_accepts_indentationless_yaml_sequence(self) -> None:
+        source = '''
+version: "1.0"
+lines:
+- text: "A line"
+  start_ms: 1000
+  end_ms: 2000
+  words:
+  - text: "A "
+    start_ms: 1000
+    end_ms: 1300
+  - text: line
+    start_ms: 1300
+    end_ms: 2000
+'''
+        lines = lyrics_parser._parse_lyricsfile(source)
+        self.assertEqual(lines[0]["text"], "A line")
+        self.assertEqual([cue["time"] for cue in lines[0]["cues"]], [1.0, 1.3])
+
+    def test_lrclib_word_sync_request_identifies_client_and_matches_album(self) -> None:
+        record = {
+            "trackName": "Still Alive",
+            "artistName": "Aperture Science",
+            "hasWordSync": True,
+            "lyricsfile": '''
+version: "1.0"
+lines:
+  - text: "Still alive"
+    start_ms: 1000
+    end_ms: 2500
+    words:
+      - text: "Still "
+        start_ms: 1000
+        end_ms: 1700
+      - text: alive
+        start_ms: 1700
+        end_ms: 2500
+''',
+        }
+        body = io.BytesIO(json.dumps(record).encode("utf-8"))
+        with patch.object(lyrics_parser.urllib.request, "urlopen", return_value=body) as open_url:
+            word_synced, line_synced = lyrics_parser.fetch_lrclib_candidates(
+                "Still Alive", "Aperture Science", 176, "Portal"
+            )
+        request = open_url.call_args.args[0]
+        self.assertIn("album_name=Portal", request.full_url)
+        self.assertEqual(request.get_header("User-agent"), "end4-pC lyrics helper/1.0 (https://github.com/ichigo-cm/end4-pC)")
+        self.assertTrue(word_synced)
+        self.assertEqual(line_synced, [])
+
+    def test_better_lyrics_query_includes_album_and_duration(self) -> None:
+        ttml = "<tt><body>" + "".join(
+            f'<p begin="{index}s"><span begin="{index}s" end="{index + 0.5}s">line {index}</span></p>'
+            for index in range(3)
+        ) + "</body></tt>"
+        body = io.BytesIO(json.dumps({"ttml": ttml}).encode("utf-8"))
+        with patch.object(lyrics_parser.urllib.request, "urlopen", return_value=body) as open_url:
+            lines = lyrics_parser.fetch_boidu("Song", "Artist", 180, "Album")
+        request = open_url.call_args.args[0]
+        params = urllib.parse.parse_qs(urllib.parse.urlsplit(request.full_url).query)
+        self.assertEqual(params["al"], ["Album"])
+        self.assertEqual(params["d"], ["180"])
+        self.assertEqual(len(lines), 3)
+
+    def test_word_only_lrclib_record_is_a_match_without_synced_lrc(self) -> None:
+        record = {
+            "trackName": "Still Alive",
+            "artistName": "Aperture Science",
+            "hasWordSync": True,
+            "lyricsfile": "version: '1.0'\nlines: []",
+        }
+        self.assertTrue(lyrics_parser._is_match(record, "Still Alive", "Aperture Science"))
+
+    def test_source_selection_prefers_lrclib_word_sync_then_ttml_then_lrc(self) -> None:
+        word_sync = [{"time": 1.0, "text": "word", "cues": [{"time": 1.0, "end": 2.0, "text": "word"}]}]
+        line_sync = [{"time": 1.0, "text": "line"}]
+        ttml = [{"time": 1.0, "text": "timed", "cues": [{"time": 1.0, "end": 2.0, "text": "timed"}]}]
+
+        with patch.object(lyrics_parser, "fetch_lrclib_candidates", return_value=(word_sync, line_sync)), \
+                patch.object(lyrics_parser, "fetch_boidu") as fetch_ttml:
+            self.assertEqual(lyrics_parser.fetch_best_lyrics("t", "a", 3), word_sync)
+            fetch_ttml.assert_not_called()
+
+        with patch.object(lyrics_parser, "fetch_lrclib_candidates", return_value=([], line_sync)), \
+                patch.object(lyrics_parser, "fetch_boidu", return_value=ttml):
+            self.assertEqual(lyrics_parser.fetch_best_lyrics("t", "a", 3), ttml)
+
+        with patch.object(lyrics_parser, "fetch_lrclib_candidates", return_value=([], line_sync)), \
+                patch.object(lyrics_parser, "fetch_boidu", return_value=[{"time": 1.0, "text": "untimed"}]):
+            self.assertEqual(lyrics_parser.fetch_best_lyrics("t", "a", 3), line_sync)
 
 
 if __name__ == "__main__":

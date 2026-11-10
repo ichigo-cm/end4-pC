@@ -31,6 +31,12 @@ class MediaAndWeatherGuardTests(unittest.TestCase):
         self.assertIn("karaokeWeights: root.normalizedTimingWeights", source)
         self.assertIn("interval: root.karaokeMotion ? 33 : 100", source)
 
+    def test_lyrics_fetch_receives_mpris_album_metadata(self) -> None:
+        source = (ROOT / "services/LyricsService.qml").read_text(encoding="utf-8")
+        self.assertIn('const album = root.activePlayer?.trackAlbum ?? ""', source)
+        self.assertIn("String(Math.floor(duration)), album", source)
+        self.assertIn("function onTrackAlbumChanged() { restartDebounce.restart() }", source)
+
     def test_all_cover_downloaders_ignore_stale_results_and_retry_current_art(self) -> None:
         for relative_path in MEDIA_COMPONENTS:
             with self.subTest(component=relative_path):

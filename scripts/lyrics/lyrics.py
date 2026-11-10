@@ -2,11 +2,14 @@
 """Fetch synchronized lyrics and normalize optional lyric presentation metadata."""
 
 import json
+import math
 import re
 import shutil
 import subprocess
 import sys
+import time
 import unicodedata
+import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -14,6 +17,8 @@ import xml.etree.ElementTree as ET
 LRC_LINE_TAG = re.compile(r"\[(\d+:\d{2}(?:\.\d+)?)\]")
 LRC_INLINE_TAG = re.compile(r"<(\d+:\d{2}(?:\.\d+)?)>")
 VOCAL_SEGMENT = re.compile(r"[\(（]([^()（）]{1,120})[\)）]")
+LYRICS_USER_AGENT = "end4-pC lyrics helper/1.0 (https://github.com/ichigo-cm/end4-pC)"
+LRCLIB_REQUEST_DELAY_SECONDS = 0.25
 
 
 def _lrc_seconds(value: str) -> float:
@@ -73,8 +78,196 @@ def _parse_lrc(lrc_text: str) -> list:
     return sorted(lines, key=lambda item: item["time"])
 
 
+def _lyricsfile_scalar(value: str):
+    value = value.strip()
+    if not value:
+        return ""
+    if value.startswith('"'):
+        closing = value.rfind('"')
+        if closing > 0 and (not value[closing + 1:].strip() or value[closing + 1:].lstrip().startswith("#")):
+            value = value[:closing + 1]
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            return None
+    if value.startswith("'"):
+        closing = value.rfind("'")
+        if closing > 0 and (not value[closing + 1:].strip() or value[closing + 1:].lstrip().startswith("#")):
+            value = value[:closing + 1]
+        if len(value) < 2 or not value.endswith("'"):
+            return None
+        return value[1:-1].replace("''", "'")
+    value = re.split(r"\s+#", value, maxsplit=1)[0].rstrip()
+    if value in ("null", "Null", "NULL", "~"):
+        return None
+    if value in ("true", "True", "TRUE"):
+        return True
+    if value in ("false", "False", "FALSE"):
+        return False
+    if re.fullmatch(r"[-+]?\d+", value):
+        try:
+            return int(value)
+        except ValueError:
+            return None
+    if re.fullmatch(r"[-+]?(?:\d+\.\d*|\d*\.\d+)(?:[eE][-+]?\d+)?", value):
+        try:
+            return float(value)
+        except ValueError:
+            return None
+    if value in ("|", ">", "[]", "{}"):
+        return None
+    return value
+
+
+def _lyricsfile_entry(value: str):
+    if value.startswith("- "):
+        value = value[2:]
+    key, separator, scalar = value.partition(":")
+    if not separator:
+        return None
+    key = key.strip()
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key):
+        return None
+    return key, scalar.strip()
+
+
+def _parse_lyricsfile(source: str) -> list:
+    """Parse Lyricsfile 1.0's line/word timing subset without a YAML dependency."""
+    if not isinstance(source, str):
+        return []
+    raw_lines = source.splitlines()
+    lines_header = next(
+        (index for index, raw in enumerate(raw_lines)
+         if not raw.startswith((" ", "\t")) and re.fullmatch(r"lines\s*:\s*(?:#.*)?", raw.strip())),
+        None,
+    )
+    if lines_header is None:
+        return []
+
+    line_records = []
+    current_line = None
+    current_word = None
+    line_item_indent = None
+    words_key_indent = None
+    word_item_indent = None
+
+    for raw in raw_lines[lines_header + 1:]:
+        content = raw.lstrip(" ")
+        indent = len(raw) - len(content)
+        if not content or content.startswith("#"):
+            continue
+        if indent == 0 and not content.startswith("- "):
+            break
+
+        if content.startswith("- "):
+            if line_item_indent is None or indent == line_item_indent:
+                current_line = {"_words": []}
+                line_records.append(current_line)
+                line_item_indent = indent
+                words_key_indent = None
+                word_item_indent = None
+                current_word = None
+                entry = _lyricsfile_entry(content)
+                if entry:
+                    key, scalar = entry
+                    if key == "words":
+                        words_key_indent = indent
+                    else:
+                        current_line[key] = _lyricsfile_scalar(scalar)
+                continue
+
+            if current_line is None or words_key_indent is None or indent < words_key_indent:
+                return []
+            if word_item_indent is None:
+                word_item_indent = indent
+            if indent != word_item_indent:
+                return []
+            current_word = {}
+            current_line["_words"].append(current_word)
+            entry = _lyricsfile_entry(content)
+            if entry:
+                key, scalar = entry
+                current_word[key] = _lyricsfile_scalar(scalar)
+            continue
+
+        if current_line is None or indent <= line_item_indent:
+            continue
+        target = current_word if (
+            current_word is not None and word_item_indent is not None and indent > word_item_indent
+        ) else current_line
+        entry = _lyricsfile_entry(content)
+        if not entry:
+            continue
+        key, scalar = entry
+        if target is current_line and key == "words":
+            if scalar and scalar != "[]" and not scalar.startswith("#"):
+                return []
+            current_line["_words"] = []
+            words_key_indent = indent
+            word_item_indent = None
+            current_word = None
+        else:
+            target[key] = _lyricsfile_scalar(scalar)
+
+    def milliseconds(value):
+        try:
+            result = float(value) / 1000.0
+            return result if math.isfinite(result) and result >= 0 else None
+        except (TypeError, ValueError):
+            return None
+
+    parsed = []
+    for record in line_records:
+        cues = []
+        for word in record.get("_words", []):
+            if not isinstance(word, dict) or not str(word.get("text", "")):
+                continue
+            start = milliseconds(word.get("start_ms"))
+            if start is None:
+                continue
+            cue = {"time": start, "text": str(word["text"])}
+            end = milliseconds(word.get("end_ms"))
+            if end is not None and end > start:
+                cue["end"] = end
+            cues.append(cue)
+
+        if not cues:
+            continue
+        if any(cues[index]["time"] > cues[index + 1]["time"] for index in range(len(cues) - 1)):
+            return []
+
+        line_start = milliseconds(record.get("start_ms"))
+        if line_start is None:
+            line_start = cues[0]["time"]
+        line_end = milliseconds(record.get("end_ms"))
+        for index, cue in enumerate(cues):
+            if "end" in cue:
+                continue
+            next_start = cues[index + 1]["time"] if index + 1 < len(cues) else line_end
+            if next_start is not None and next_start > cue["time"]:
+                cue["end"] = next_start
+
+        text = record.get("text")
+        if not isinstance(text, str) or not text.strip():
+            text = "".join(cue["text"] for cue in cues)
+        text = _clean_text(text)
+        if not text:
+            continue
+        parsed.append({
+            "time": line_start,
+            "text": text,
+            "fullText": text,
+            "cues": cues,
+            "fullCues": [dict(cue) for cue in cues],
+        })
+    return sorted(parsed, key=lambda item: item["time"])
+
+
 def _is_match(data: dict, title: str, artist: str) -> bool:
-    if not data.get("syncedLyrics"):
+    has_timed_data = bool(data.get("syncedLyrics")) or (
+        data.get("hasWordSync") is True and bool(data.get("lyricsfile"))
+    )
+    if not has_timed_data:
         return False
     remote_title = (data.get("trackName") or "").lower()
     remote_artist = (data.get("artistName") or "").lower()
@@ -93,25 +286,58 @@ def _is_match(data: dict, title: str, artist: str) -> bool:
     return title_match and artist_match
 
 
-def fetch_lrclib(title: str, artist: str, duration: float) -> list:
-    urls = [
-        f"https://lrclib.net/api/get?track_name={urllib.parse.quote(title)}&artist_name={urllib.parse.quote(artist)}&duration={int(duration)}",
-        f"https://lrclib.net/api/search?track_name={urllib.parse.quote(title)}&artist_name={urllib.parse.quote(artist)}",
-        f"https://lrclib.net/api/search?q={urllib.parse.quote(title + ' ' + artist)}",
-    ]
-    for url in urls:
+def fetch_lrclib_candidates(title: str, artist: str, duration: float, album: str = "") -> tuple:
+    query = {"track_name": title, "artist_name": artist}
+    if album:
+        query["album_name"] = album
+    urls = []
+    try:
+        duration_seconds = int(duration)
+    except (TypeError, ValueError, OverflowError):
+        duration_seconds = 0
+    if duration_seconds > 0:
+        exact_query = dict(query)
+        exact_query["duration"] = str(duration_seconds)
+        urls.append(f"https://lrclib.net/api/get?{urllib.parse.urlencode(exact_query)}")
+    urls.extend([
+        f"https://lrclib.net/api/search?{urllib.parse.urlencode(query)}",
+        f"https://lrclib.net/api/search?q={urllib.parse.quote(' '.join(part for part in (title, artist, album) if part))}",
+    ])
+    word_synced_lines = []
+    line_synced_lines = []
+    for index, url in enumerate(urls):
+        data = None
         try:
-            with urllib.request.urlopen(url, timeout=15) as response:
+            request = urllib.request.Request(
+                url,
+                headers={"User-Agent": LYRICS_USER_AGENT},
+            )
+            with urllib.request.urlopen(request, timeout=15) as response:
                 data = json.loads(response.read().decode())
-            if isinstance(data, list):
-                data = next((item for item in data if _is_match(item, title, artist)), None)
-            if data and _is_match(data, title, artist):
-                lines = _parse_lrc(data["syncedLyrics"])
-                if lines:
-                    return lines
+        except urllib.error.HTTPError as error:
+            if error.code == 429:
+                break
         except Exception:
-            continue
-    return []
+            pass
+
+        records = data if isinstance(data, list) else [data]
+        for record in records:
+            if not isinstance(record, dict) or not _is_match(record, title, artist):
+                continue
+            if not word_synced_lines and record.get("hasWordSync") is True:
+                word_synced_lines = _parse_lyricsfile(record.get("lyricsfile", ""))
+            if not line_synced_lines and record.get("syncedLyrics"):
+                line_synced_lines = _parse_lrc(record["syncedLyrics"])
+            if word_synced_lines:
+                return word_synced_lines, line_synced_lines
+        if index + 1 < len(urls):
+            time.sleep(LRCLIB_REQUEST_DELAY_SECONDS)
+    return word_synced_lines, line_synced_lines
+
+
+def fetch_lrclib(title: str, artist: str, duration: float, album: str = "") -> list:
+    word_synced, line_synced = fetch_lrclib_candidates(title, artist, duration, album)
+    return word_synced or line_synced
 
 
 def _ttml_seconds(value: str) -> float:
@@ -146,8 +372,10 @@ def _ttml_vocal_kind(span) -> str:
     metadata = " ".join(
         str(span.get(name, ""))
         for name in ("role", "class", "type", "agent")
-    ).lower()
-    if any(word in metadata for word in ("background", "backing", "bg-vocal", "bg_vocal")):
+    )
+    metadata += " " + str(span.get("{http://www.w3.org/ns/ttml#metadata}role", ""))
+    metadata = metadata.lower()
+    if any(word in metadata for word in ("background", "backing", "bg-vocal", "bg_vocal", "x-bg")):
         return "background"
     if any(word in metadata for word in ("side", "ad-lib", "adlib", "harmony")):
         return "side"
@@ -178,6 +406,26 @@ def _parse_ttml(ttml: str) -> list:
             vocal_text = _clean_text("".join(span.itertext()))
             if not vocal_text:
                 continue
+            timed_descendants = [
+                child for child in span.iter()
+                if child is not span and _local_name(child) == "span" and child.get("begin") is not None
+            ]
+            if timed_descendants:
+                for child in timed_descendants:
+                    child_text = _clean_text("".join(child.itertext()))
+                    if not child_text:
+                        continue
+                    layer = {"type": kind, "text": child_text, "time": line_time}
+                    try:
+                        layer["time"] = _resolve_ttml_time(child.get("begin"), line_time)
+                        if child.get("end") is not None:
+                            end_time = _resolve_ttml_time(child.get("end"), line_time)
+                            if end_time > layer["time"]:
+                                layer["end"] = end_time
+                    except (ValueError, TypeError):
+                        pass
+                    vocal_layers.append(layer)
+                continue
             layer = {"type": kind, "text": vocal_text, "time": line_time}
             try:
                 if span.get("begin") is not None:
@@ -196,11 +444,21 @@ def _parse_ttml(ttml: str) -> list:
             raw_text = raw_text.replace(layer["text"], "", 1)
         text = _clean_text(raw_text)
 
+        parents = {child: parent for parent in paragraph.iter() for child in parent}
+
+        def is_inside_vocal_layer(span):
+            current = span
+            while current is not None and current is not paragraph:
+                if _ttml_vocal_kind(current):
+                    return True
+                current = parents.get(current)
+            return False
+
         cues = []
         for span in paragraph.iter():
             if span is paragraph or _local_name(span) != "span" or span.get("begin") is None:
                 continue
-            if _ttml_vocal_kind(span):
+            if is_inside_vocal_layer(span):
                 continue
             # Avoid counting a timed parent and its timed child twice.
             has_timed_child = any(
@@ -253,13 +511,17 @@ def _parse_ttml(ttml: str) -> list:
 BOIDU_BASES = ["https://api.betterlyrics.org", "https://lyrics-api.boidu.dev"]
 
 
-def fetch_boidu(title: str, artist: str, duration: float) -> list:
-    query = f"/getLyrics?s={urllib.parse.quote(title)}&a={urllib.parse.quote(artist)}"
-    if duration > 0:
-        query += f"&d={int(duration)}"
+def fetch_boidu(title: str, artist: str, duration: float, album: str = "") -> list:
+    query = urllib.parse.urlencode({
+        "s": title,
+        "a": artist,
+        "al": album,
+        "d": max(0, int(duration)),
+    })
+    query = f"/getLyrics?{query}"
     for base in BOIDU_BASES:
         try:
-            request = urllib.request.Request(base + query, headers={"User-Agent": "Mozilla/5.0"})
+            request = urllib.request.Request(base + query, headers={"User-Agent": LYRICS_USER_AGENT})
             with urllib.request.urlopen(request, timeout=15) as response:
                 data = json.loads(response.read().decode())
             lines = _parse_ttml(data.get("ttml") or "")
@@ -268,6 +530,22 @@ def fetch_boidu(title: str, artist: str, duration: float) -> list:
         except Exception:
             continue
     return []
+
+
+def fetch_best_lyrics(title: str, artist: str, duration: float, album: str = "") -> list:
+    word_synced, line_synced = fetch_lrclib_candidates(title, artist, duration, album)
+    if word_synced:
+        return word_synced
+
+    ttml_lines = fetch_boidu(title, artist, duration, album)
+    has_timed_cues = any(
+        line.get("cues") or line.get("fullCues")
+        for line in ttml_lines
+        if isinstance(line, dict)
+    )
+    if has_timed_cues:
+        return ttml_lines
+    return line_synced or ttml_lines
 
 
 def _split_vocals(text: str):
@@ -567,10 +845,11 @@ def main():
     title = sys.argv[1]
     artist = sys.argv[2]
     duration = float(sys.argv[3])
+    album = sys.argv[4] if len(sys.argv) > 4 else ""
     if not title or not artist:
         print("no_info", flush=True)
         sys.exit(0)
-    lines = fetch_lrclib(title, artist, duration) or fetch_boidu(title, artist, duration)
+    lines = fetch_best_lyrics(title, artist, duration, album)
     if not lines:
         print("not_found", flush=True)
         sys.exit(0)
