@@ -23,6 +23,14 @@ class MediaAndWeatherGuardTests(unittest.TestCase):
         self.assertIn("downAction: () => { if (callback) callback(); }", source)
         self.assertEqual(source.count("callback: () =>"), 4)
 
+    def test_karaoke_uses_weighted_cue_and_line_pacing(self) -> None:
+        source = (ROOT / "services/LyricsService.qml").read_text(encoding="utf-8")
+        self.assertIn("function weightedRevealCount(text, progress, weights)", source)
+        self.assertIn("root.weightedRevealCount(cueText, cueProgress, cue.weights)", source)
+        self.assertIn("root.weightedRevealCount(text, progress, lineWeights)", source)
+        self.assertIn("karaokeWeights: root.normalizedTimingWeights", source)
+        self.assertIn("interval: root.karaokeMotion ? 33 : 100", source)
+
     def test_all_cover_downloaders_ignore_stale_results_and_retry_current_art(self) -> None:
         for relative_path in MEDIA_COMPONENTS:
             with self.subTest(component=relative_path):

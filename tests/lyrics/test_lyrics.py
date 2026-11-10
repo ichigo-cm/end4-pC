@@ -21,6 +21,28 @@ class LyricsTimingTests(unittest.TestCase):
         self.assertEqual([line["text"] for line in lines], ["Hello there", "Next line"])
         self.assertNotIn("cues", lines[0])
 
+    def test_karaoke_weights_hold_vowels_and_punctuation_longer(self) -> None:
+        weights = lyrics_parser._karaoke_character_weights("sing!")
+        self.assertEqual(len(weights), len("sing!"))
+        self.assertGreater(weights[1], weights[0])
+        self.assertGreater(weights[-1], weights[-2])
+
+    def test_enrichment_attaches_weights_to_main_full_and_timed_cue_text(self) -> None:
+        lines = lyrics_parser._enrich_lines([{
+            "time": 1.0,
+            "text": "Sing (oh!) now",
+            "cues": [
+                {"time": 1.0, "text": "Sing (oh!)"},
+                {"time": 2.0, "text": "now"},
+            ],
+        }])
+        line = lines[0]
+        self.assertEqual(line["text"], "Sing now")
+        self.assertEqual(len(line["karaokeWeights"]), len(line["text"]))
+        self.assertEqual(len(line["fullKaraokeWeights"]), len(line["fullText"]))
+        self.assertEqual(len(line["cues"][0]["weights"]), len(line["cues"][0]["text"]))
+        self.assertEqual(len(line["fullCues"][0]["weights"]), len(line["fullCues"][0]["text"]))
+
     def test_enhanced_lrc_preserves_syllable_timing_and_plain_text(self) -> None:
         lines = lyrics_parser._parse_lrc("[00:10.00]<00:10.00>Hel<00:10.24>lo <00:10.52>there!")
         self.assertEqual(len(lines), 1)

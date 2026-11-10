@@ -110,6 +110,38 @@ Singleton {
         return start + span
     }
 
+    function normalizedTimingWeights(weights, text) {
+        const length = Array.from(String(text ?? "")).length
+        if (!Array.isArray(weights) || weights.length !== length) return []
+        const normalized = weights.map(value => {
+            const weight = Number(value)
+            return Number.isFinite(weight) && weight >= 0 ? weight : NaN
+        })
+        return normalized.every(weight => Number.isFinite(weight)) ? normalized : []
+    }
+
+    function weightedRevealCount(text, progress, weights) {
+        const characters = Array.from(String(text ?? ""))
+        if (characters.length === 0) return 0
+        const timingWeights = Array.isArray(weights) && weights.length === characters.length
+            ? weights : characters.map(() => 1)
+        const total = timingWeights.reduce((sum, value) => sum + Math.max(0, Number(value) || 0), 0)
+        if (!Number.isFinite(total) || total <= 0)
+            return Math.floor(Math.max(0, Math.min(1, Number(progress) || 0)) * characters.length)
+
+        const target = Math.max(0, Math.min(1, Number(progress) || 0)) * total
+        let elapsed = 0
+        let count = 0
+        while (count < characters.length) {
+            const value = Number(timingWeights[count])
+            const weight = Number.isFinite(value) ? Math.max(0, value) : 1
+            if (target < elapsed + weight) break
+            elapsed += weight
+            count++
+        }
+        return count
+    }
+
     function revealCountAt(index, position) {
         const line = root.lyricsLines[index]
         if (!line) return 0
@@ -117,6 +149,9 @@ Singleton {
         const text = String(useVocalLayers ? (line.text ?? "") : (line.fullText ?? line.text ?? ""))
         const characters = Array.from(text)
         if (characters.length === 0) return 0
+        const lineWeights = useVocalLayers
+            ? line.karaokeWeights
+            : (line.fullKaraokeWeights ?? line.karaokeWeights)
 
         const lineStart = Number(line.time)
         const fallbackEnd = root.lineEndPosition(index, lineStart, characters.length)
@@ -126,6 +161,9 @@ Singleton {
         let matchedCues = 0
         let revealed = 0
         let cursor = 0
+        let cursorCount = 0
+        let cursorTime = lineStart
+        let lastCueStart = lineStart
 
         for (let i = 0; i < cues.length; i++) {
             const cue = cues[i]
@@ -137,8 +175,20 @@ Singleton {
             if (offset < 0) continue
             matchedCues++
 
+            const gapText = text.slice(cursor, offset)
+            const gapCharacters = Array.from(gapText)
+            const gapEnd = Math.max(cursorTime, cueStart)
+            const gapProgress = gapEnd <= cursorTime
+                ? (position >= gapEnd ? 1 : 0)
+                : Math.max(0, Math.min(1, (position - cursorTime) / (gapEnd - cursorTime)))
+            const gapWeights = Array.isArray(lineWeights)
+                ? lineWeights.slice(cursorCount, cursorCount + gapCharacters.length) : []
+            if (gapCharacters.length > 0 && revealed >= cursorCount) {
+                const gapRevealed = root.weightedRevealCount(gapText, gapProgress, gapWeights)
+                revealed = Math.max(revealed, cursorCount + gapRevealed)
+            }
+            const cueStartCount = cursorCount + gapCharacters.length
             const cueCharacters = Array.from(cueText)
-            const prefixCount = Array.from(text.slice(cursor, offset)).length
             let cueEnd = Number(cue?.end)
             if (!Number.isFinite(cueEnd) || cueEnd <= cueStart) {
                 cueEnd = NaN
@@ -152,21 +202,38 @@ Singleton {
                 if (!Number.isFinite(cueEnd)) cueEnd = fallbackEnd
             }
 
+            if (position < cueStart)
+                return Math.max(0, Math.min(characters.length, revealed))
             if (position >= cueStart) {
                 const cueProgress = position >= cueEnd
                     ? 1
                     : Math.max(0, Math.min(1, (position - cueStart) / Math.max(0.001, cueEnd - cueStart)))
-                const withinCue = Math.floor(cueProgress * cueCharacters.length)
-                revealed = Math.max(revealed, prefixCount + withinCue)
+                const withinCue = root.weightedRevealCount(cueText, cueProgress, cue.weights)
+                revealed = Math.max(revealed, cueStartCount + withinCue)
             }
             cursor = offset + cueText.length
+            cursorCount = cueStartCount + cueCharacters.length
+            cursorTime = Math.max(cueStart, cueEnd)
+            lastCueStart = cueStart
         }
 
-        if (matchedCues > 0)
+        if (matchedCues > 0) {
+            const tailText = text.slice(cursor)
+            const tailCharacters = Array.from(tailText)
+            if (tailCharacters.length > 0) {
+                let tailStart = Math.min(fallbackEnd, Math.max(lineStart, cursorTime))
+                if (tailStart >= fallbackEnd && lastCueStart < fallbackEnd)
+                    tailStart = lastCueStart
+                const tailProgress = Math.max(0, Math.min(1, (position - tailStart) / Math.max(0.001, fallbackEnd - tailStart)))
+                const tailWeights = Array.isArray(lineWeights) ? lineWeights.slice(cursorCount) : []
+                const tailRevealed = root.weightedRevealCount(tailText, tailProgress, tailWeights)
+                revealed = Math.max(revealed, cursorCount + tailRevealed)
+            }
             return Math.max(0, Math.min(characters.length, revealed))
+        }
 
         const progress = Math.max(0, Math.min(1, (position - lineStart) / Math.max(0.001, fallbackEnd - lineStart)))
-        return Math.floor(progress * characters.length)
+        return root.weightedRevealCount(text, progress, lineWeights)
     }
 
     function updateKaraoke() {
@@ -269,7 +336,7 @@ Singleton {
 
     Timer {
         id: lyricProgressTimer
-        interval: root.karaokeMotion ? 50 : 100
+        interval: root.karaokeMotion ? 33 : 100
         repeat: true
         running: root.synced && root.playing && (root.karaokeMotion || root.hasTimedVocals)
         onTriggered: {
@@ -314,6 +381,11 @@ Singleton {
                                     time: Number(line.time),
                                     text: line.text,
                                     fullText: typeof line.fullText === "string" ? line.fullText : line.text,
+                                    karaokeWeights: root.normalizedTimingWeights(line.karaokeWeights, line.text),
+                                    fullKaraokeWeights: root.normalizedTimingWeights(
+                                        line.fullKaraokeWeights,
+                                        typeof line.fullText === "string" ? line.fullText : line.text
+                                    ),
                                     romanizedText: typeof line.romanizedText === "string" ? line.romanizedText : "",
                                     romanizedFullText: typeof line.romanizedFullText === "string" ? line.romanizedFullText : (line.romanizedText || "")
                                 }
@@ -323,6 +395,8 @@ Singleton {
                                         .map(cue => {
                                             const item = { time: Number(cue.time), text: cue.text }
                                             if (Number.isFinite(Number(cue.end))) item.end = Number(cue.end)
+                                            const weights = root.normalizedTimingWeights(cue.weights, cue.text)
+                                            if (weights.length === Array.from(cue.text).length) item.weights = weights
                                             return item
                                         })
                                 }
@@ -345,6 +419,8 @@ Singleton {
                                         .map(cue => {
                                             const item = { time: Number(cue.time), text: cue.text }
                                             if (Number.isFinite(Number(cue.end))) item.end = Number(cue.end)
+                                            const weights = root.normalizedTimingWeights(cue.weights, cue.text)
+                                            if (weights.length === Array.from(cue.text).length) item.weights = weights
                                             return item
                                         })
                                 }

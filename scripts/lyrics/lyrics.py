@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 import sys
+import unicodedata
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -441,6 +442,53 @@ def _romanize_texts(texts: list) -> list:
     return results
 
 
+_LATIN_VOWELS = frozenset("aeiouyàáâãäåæèéêëìíîïòóôõöøùúûüÿāēīōūœ")
+_GREEK_VOWELS = frozenset("αεηιουω")
+_CYRILLIC_VOWELS = frozenset("аеёиоуыэюя")
+_SMALL_KANA = frozenset("ぁぃぅぇぉゃゅょゎァィゥェォャュョヮ")
+
+
+def _karaoke_character_weights(text: str) -> list:
+    """Return relative character durations; these shape animation, not source timestamps."""
+    weights = []
+    for char in str(text):
+        codepoint = ord(char)
+        category = unicodedata.category(char)
+        if category.startswith("M"):
+            weight = 0.0
+        elif char.isspace():
+            weight = 0.28
+        elif char == "ー":
+            weight = 1.8
+        elif char == "っ":
+            weight = 0.55
+        elif char in _SMALL_KANA:
+            weight = 0.4
+        elif char in ".!?…！？。":
+            weight = 2.2
+        elif char in ",;:，、；：":
+            weight = 1.25
+        elif 0x3040 <= codepoint <= 0x30FF or 0x3400 <= codepoint <= 0x9FFF or 0xAC00 <= codepoint <= 0xD7AF:
+            weight = 1.0
+        elif char.isalpha():
+            decomposed = unicodedata.normalize("NFD", char.casefold())
+            base = next((value for value in decomposed if value.isalpha()), char.casefold())
+            if base in _LATIN_VOWELS or base in _GREEK_VOWELS or base in _CYRILLIC_VOWELS:
+                weight = 1.8 if base != "y" else 1.2
+            elif base in "mnlrw":
+                weight = 0.78
+            elif codepoint < 0x0250:
+                weight = 0.52
+            else:
+                weight = 1.0
+        elif category.startswith("P"):
+            weight = 0.9
+        else:
+            weight = 0.8
+        weights.append(weight)
+    return weights
+
+
 def _enrich_lines(lines: list) -> list:
     enriched = []
     for source_line in lines:
@@ -448,6 +496,8 @@ def _enrich_lines(lines: list) -> list:
         line_time = float(line.get("time", 0))
         full_text = str(line.get("fullText", line.get("text", "")))
         full_cues = [dict(cue) for cue in line.get("fullCues", line.get("cues", []))]
+        for cue in full_cues:
+            cue["weights"] = _karaoke_character_weights(str(cue.get("text", "")))
         line_text, inline_vocals = _split_vocals(str(line.get("text", "")))
         layers = list(line.get("vocalLayers", []))
         cue_vocal_keys = set()
@@ -457,6 +507,7 @@ def _enrich_lines(lines: list) -> list:
             cue_item = dict(cue)
             cue_text, cue_vocals = _split_vocals(str(cue_item.get("text", "")))
             cue_item["text"] = cue_text
+            cue_item["weights"] = _karaoke_character_weights(cue_text)
             cue_time = float(cue_item.get("time", line_time))
             for item in cue_vocals:
                 cue_vocal_keys.add((item["type"], item["text"]))
@@ -486,6 +537,8 @@ def _enrich_lines(lines: list) -> list:
 
         line["text"] = line_text
         line["fullText"] = full_text
+        line["karaokeWeights"] = _karaoke_character_weights(line_text)
+        line["fullKaraokeWeights"] = _karaoke_character_weights(full_text)
         line["cues"] = normalized_cues
         line["fullCues"] = full_cues
         line["vocalLayers"] = [
