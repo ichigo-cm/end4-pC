@@ -20,7 +20,7 @@ Item {
         id: controlButton
         property string symbol: ""
         property string label: ""
-        property var action
+        property var callback
         implicitWidth: 52
         implicitHeight: 52
         buttonRadius: 26
@@ -28,7 +28,7 @@ Item {
         colBackground: Qt.rgba(1, 1, 1, 0.12)
         colBackgroundHover: Qt.rgba(1, 1, 1, 0.2)
         colRipple: Qt.rgba(1, 1, 1, 0.28)
-        downAction: () => { if (action) action(); }
+        downAction: () => { if (callback) callback(); }
         contentItem: MaterialSymbol {
             iconSize: Appearance.font.pixelSize.large
             fill: 1
@@ -139,7 +139,7 @@ Item {
                         ControlButton {
                             symbol: "close"
                             label: Translation.tr("Close immersive lyrics")
-                            action: () => GlobalStates.lyricsFullscreenOpen = false
+                            callback: () => GlobalStates.lyricsFullscreenOpen = false
                         }
                     }
 
@@ -261,19 +261,19 @@ Item {
                         ControlButton {
                             symbol: "skip_previous"
                             label: Translation.tr("Previous track")
-                            action: () => root.player?.previous()
+                            callback: () => root.player?.previous()
                         }
 
                         ControlButton {
                             symbol: root.player?.isPlaying ? "pause" : "play_arrow"
                             label: root.player?.isPlaying ? Translation.tr("Pause") : Translation.tr("Play")
-                            action: () => root.player?.togglePlaying()
+                            callback: () => root.player?.togglePlaying()
                         }
 
                         ControlButton {
                             symbol: "skip_next"
                             label: Translation.tr("Next track")
-                            action: () => root.player?.next()
+                            callback: () => root.player?.next()
                         }
                     }
                 }

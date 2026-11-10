@@ -16,6 +16,13 @@ MEDIA_COMPONENTS = (
 
 
 class MediaAndWeatherGuardTests(unittest.TestCase):
+    def test_immersive_lyrics_buttons_do_not_override_final_qt_action_property(self) -> None:
+        source = (ROOT / "modules/ii/overlay/LyricsImmersiveView.qml").read_text(encoding="utf-8")
+        self.assertNotIn("property var action", source)
+        self.assertIn("property var callback", source)
+        self.assertIn("downAction: () => { if (callback) callback(); }", source)
+        self.assertEqual(source.count("callback: () =>"), 4)
+
     def test_all_cover_downloaders_ignore_stale_results_and_retry_current_art(self) -> None:
         for relative_path in MEDIA_COMPONENTS:
             with self.subTest(component=relative_path):
