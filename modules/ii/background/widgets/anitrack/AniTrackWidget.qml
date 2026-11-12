@@ -47,8 +47,8 @@ AbstractBackgroundWidget {
         primaryHover: Appearance.colors.colPrimaryHover
     })
     readonly property bool detailOpen: tabBar.currentIndex === 0 && searchView.selectedAnime !== null
-    // QtWebEngine's Chromium bootstrap needs argv[0]; some Quickshell builds create QGuiApplication with argc=0.
-    readonly property bool webExperienceHostSupportsWebEngine: Qt.application.arguments.length > 0
+    // The standalone browser app replaces the embedded QtWebEngine experiment.
+    readonly property bool webExperienceHostSupportsWebEngine: false
 
     function cssColor(value) {
         const alpha = Number(value.a);
@@ -279,9 +279,9 @@ AbstractBackgroundWidget {
         anchors.fill: parent
         anchors.margins: 14
         z: 10
-        active: root.webExperienceHostSupportsWebEngine
+        // Keep Chromium uninstantiated inside Quickshell; the local app runs in the user's browser.
+        active: false
         asynchronous: true
-        Component.onCompleted: setSource(Qt.resolvedUrl("AniTrackWebExperience.qml"), { "state": root.webState })
         visible: true
         enabled: item ? item.pageReady : false
         onStatusChanged: {
