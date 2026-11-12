@@ -48,6 +48,59 @@ AbstractBackgroundWidget {
     })
     readonly property bool detailOpen: tabBar.currentIndex === 0 && searchView.selectedAnime !== null
 
+    function cssColor(value) {
+        const alpha = Number(value.a);
+        return `rgba(${Math.round(value.r * 255)}, ${Math.round(value.g * 255)}, ${Math.round(value.b * 255)}, ${alpha.toFixed(3)})`;
+    }
+
+    readonly property var webState: ({
+        currentTab: tabBar.currentIndex,
+        detailOpen: root.detailOpen,
+        selectedAnime: searchView.selectedAnime,
+        search: ({
+            results: searchView.results,
+            state: searchView.requestState,
+            error: searchView.errorMessage,
+            submittedQuery: searchView.submittedQuery,
+            hasNextPage: searchView.hasNextPage,
+            loadingMore: searchView.loadingMore
+        }),
+        schedule: ({
+            entries: scheduleView.entries,
+            state: scheduleView.stateName,
+            error: scheduleView.errorMessage,
+            selectedDay: scheduleView.selectedDay,
+            weekdays: scheduleView.weekdays,
+            hasNextPage: scheduleView.hasNextPage,
+            loadingMore: scheduleView.loadingMore
+        }),
+        history: ({
+            entries: root.historyEntries,
+            state: root.historyState,
+            error: root.historyError,
+            refreshing: root.historyRefreshing,
+            artwork: historyView.artworkCache
+        }),
+        launch: ({status: root.launchStatus, failed: root.launchFailed}),
+        theme: ({
+            panel: root.cssColor(root.palette.panel),
+            surface: root.cssColor(root.palette.surface),
+            card: root.cssColor(root.palette.card),
+            hover: root.cssColor(root.palette.cardHover),
+            outline: root.cssColor(root.palette.outline),
+            text: root.cssColor(root.palette.text),
+            secondary: root.cssColor(root.palette.secondary),
+            primary: root.cssColor(root.palette.lavender),
+            mint: root.cssColor(root.palette.mint),
+            error: root.cssColor(root.palette.error),
+            errorContainer: root.cssColor(root.palette.errorContainer),
+            onPrimary: root.cssColor(root.palette.buttonText),
+            fontMain: Appearance.font.family.main,
+            reducedMotion: Config.options.appearance.reducedMotion
+        })
+    })
+
+
     function aniListDelayMs() {
         const minimumIntervalMs = 2200;
         return Math.max(0, minimumIntervalMs - (Date.now() - lastAniListRequestMs), aniListBlockedUntilMs - Date.now());
@@ -218,6 +271,45 @@ AbstractBackgroundWidget {
         onTriggered: root.refreshHistory()
     }
 
+    Loader {
+        id: webExperienceLoader
+        anchors.fill: parent
+        anchors.margins: 14
+        z: 10
+        active: true
+        asynchronous: true
+        Component.onCompleted: setSource(Qt.resolvedUrl("AniTrackWebExperience.qml"), { "state": root.webState })
+        visible: true
+        enabled: item ? item.pageReady : false
+        onStatusChanged: {
+            if (status === Loader.Error)
+                console.warn("[AniTrackWidget] WebEngine frontend unavailable; retaining the native QML UI.");
+        }
+    }
+
+    Binding {
+        target: webExperienceLoader.item
+        property: "state"
+        value: root.webState
+        when: webExperienceLoader.status === Loader.Ready
+    }
+
+    Connections {
+        target: webExperienceLoader.item
+        ignoreUnknownSignals: true
+        function onSearchRequested(query) { searchView.searchFromWeb(query); }
+        function onRefreshRequested() { root.refreshCurrentSection(); }
+        function onLoadMoreSearchRequested() { searchView.loadMore(); }
+        function onLoadMoreScheduleRequested() { scheduleView.loadMore(); }
+        function onTabRequested(index) { tabBar.currentIndex = index; }
+        function onDayRequested(day) { scheduleView.selectDay(day); }
+        function onAnimeSelected(anime) { searchView.openDetails(anime); }
+        function onDetailClosed() { searchView.closeDetails(); }
+        function onTitleLaunched(title) { root.openAniCli(title); }
+        function onContinueHistoryRequested() { root.continueAniCliHistory(); }
+        function onOpenAniListRequested() { Qt.openUrlExternally("https://anilist.co"); }
+    }
+
     WidgetCard {
         id: card
         anchors.fill: parent
@@ -226,6 +318,7 @@ AbstractBackgroundWidget {
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: 14
+            visible: webExperienceLoader.status !== Loader.Ready || !webExperienceLoader.item.pageReady
             spacing: 8
 
             RowLayout {
@@ -432,9 +525,11 @@ AbstractBackgroundWidget {
                 }
 
                 AniCliHistoryView {
+                    id: historyView
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     entries: root.historyEntries
+                    webArtworkEnabled: webExperienceLoader.status === Loader.Ready && tabBar.currentIndex === 2
                     stateName: root.historyState
                     errorMessage: root.historyError
                     refreshing: root.historyRefreshing

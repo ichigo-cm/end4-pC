@@ -18,6 +18,7 @@ Item {
     property bool refreshing: false
     property var apiCoordinator: null
     property var artworkCache: ({})
+    property bool webArtworkEnabled: false
     property var artworkQueue: []
     property var artworkRequest: null
     property string activeArtworkKey: ""
@@ -51,14 +52,14 @@ Item {
     }
 
     function scheduleArtworkMatch() {
-        if (!visible || artworkRequest || artworkQueue.length === 0)
+        if ((!visible && !webArtworkEnabled) || artworkRequest || artworkQueue.length === 0)
             return;
         artworkTimer.interval = Math.max(0, apiCoordinator ? apiCoordinator.aniListDelayMs() : 2200);
         artworkTimer.restart();
     }
 
     function fetchNextArtworkMatch() {
-        if (!visible || artworkRequest || artworkQueue.length === 0)
+        if ((!visible && !webArtworkEnabled) || artworkRequest || artworkQueue.length === 0)
             return;
         if (!apiCoordinator || !apiCoordinator.claimAniListRequest()) {
             artworkTimer.interval = Math.max(100, apiCoordinator ? apiCoordinator.aniListDelayMs() : 2200);
@@ -136,9 +137,15 @@ Item {
 
     onEntriesChanged: queueArtworkMatches()
     onVisibleChanged: {
-        if (visible)
+        if (visible || webArtworkEnabled)
             scheduleArtworkMatch();
         else
+            artworkTimer.stop();
+    }
+    onWebArtworkEnabledChanged: {
+        if (webArtworkEnabled)
+            scheduleArtworkMatch();
+        else if (!visible)
             artworkTimer.stop();
     }
     Component.onDestruction: {

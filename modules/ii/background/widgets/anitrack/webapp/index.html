@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' qrc:; img-src 'self' https: data:; style-src 'self' 'unsafe-inline'; script-src 'self' qrc:; connect-src 'none'; font-src 'self' data:; object-src 'none'; base-uri 'none';">
+  <title>AniTrack</title>
+  <link rel="stylesheet" href="app.css">
+  <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="topbar">
+      <div class="brand-mark" aria-hidden="true">A</div>
+      <div class="brand-copy">
+        <h1>AniTrack</h1>
+        <p id="subtitle">Find a story for tonight</p>
+      </div>
+      <button class="icon-button" id="refresh" type="button" aria-label="Refresh current section" title="Refresh">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M5.6 9a7 7 0 0 1 11.8-2L20 12M4 12l2.6 5a7 7 0 0 0 11.8-2"/></svg>
+      </button>
+    </header>
+
+    <nav class="tabs" role="tablist" aria-label="AniTrack sections">
+      <button class="tab active" id="tab-discover" type="button" role="tab" aria-selected="true" aria-controls="panel-discover" data-tab="0">Discover</button>
+      <button class="tab" id="tab-airing" type="button" role="tab" aria-selected="false" aria-controls="panel-airing" data-tab="1">Airing</button>
+      <button class="tab" id="tab-history" type="button" role="tab" aria-selected="false" aria-controls="panel-history" data-tab="2">My History</button>
+      <span class="tab-indicator" aria-hidden="true"></span>
+    </nav>
+
+    <main id="main" class="main-content">
+      <section class="panel" id="panel-discover" role="tabpanel" aria-labelledby="tab-discover">
+        <form class="search-form" id="search-form" role="search">
+          <label class="sr-only" for="search-input">Search anime titles</label>
+          <input id="search-input" type="search" placeholder="Search anime titles" autocomplete="off" enterkeyhint="search">
+          <button class="icon-button search-button" type="submit" aria-label="Search AniList" title="Search">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.2"/><path d="m15.4 15.4 4.2 4.2"/></svg>
+          </button>
+        </form>
+        <div class="section-heading">
+          <p id="search-summary" class="section-label">Search AniList</p>
+          <span id="search-count" class="count-label"></span>
+        </div>
+        <div class="state-message" id="search-state" role="status" aria-live="polite">
+          <span class="state-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v12H4zM8 21h8M12 17v4M8 9h8M8 13h5"/></svg></span>
+          <span class="state-title">Search anime on AniList</span>
+          <span class="state-detail">Enter a title to see live matches and episode details.</span>
+        </div>
+        <div class="card-list" id="search-results" aria-live="polite"></div>
+        <button class="load-more" id="search-more" type="button" hidden>Load more results</button>
+      </section>
+
+      <section class="panel" id="panel-airing" role="tabpanel" aria-labelledby="tab-airing" hidden>
+        <div class="section-heading schedule-heading">
+          <div>
+            <h2 id="schedule-title">This week</h2>
+            <p class="section-label">Local airing times</p>
+          </div>
+          <span id="schedule-count" class="count-label"></span>
+        </div>
+        <div class="day-picker" id="day-picker" role="group" aria-label="Choose weekday"></div>
+        <div class="state-message compact-state" id="schedule-state" role="status" aria-live="polite">
+          <span class="state-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h6"/></svg></span>
+          <span class="state-title">Choose a weekday to see its airing schedule.</span>
+        </div>
+        <div class="card-list" id="schedule-results"></div>
+        <button class="load-more" id="schedule-more" type="button" hidden>Load more anime</button>
+      </section>
+
+      <section class="panel" id="panel-history" role="tabpanel" aria-labelledby="tab-history" hidden>
+        <div class="section-heading history-heading">
+          <div>
+            <h2>Pick up where you left off</h2>
+            <p class="section-label">Saved locally by ani-cli</p>
+          </div>
+          <span id="history-count" class="count-label"></span>
+        </div>
+        <button class="primary-button continue-button" id="continue-history" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z"/></svg>
+          <span>Continue from history</span>
+          <svg class="trailing-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 13v6H4V5h6"/></svg>
+        </button>
+        <div class="state-message compact-state" id="history-state" role="status" aria-live="polite">
+          <span class="state-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM8 9h8M8 13h6M8 17h4"/></svg></span>
+          <span class="state-title">Reading ani-cli history…</span>
+        </div>
+        <div class="card-list history-list" id="history-results"></div>
+      </section>
+
+      <section class="panel detail-panel" id="panel-detail" aria-labelledby="detail-title" hidden>
+        <button class="back-button" id="detail-back" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 5-7 7 7 7M8 12h12"/></svg>
+          <span>Results</span>
+        </button>
+        <article class="detail-content" id="detail-content">
+          <div class="hero-card" id="detail-hero">
+            <img id="detail-poster" alt="" hidden>
+            <div class="hero-scrim"></div>
+            <div class="hero-copy">
+              <p class="eyebrow" id="detail-meta"></p>
+              <h2 id="detail-title">Anime details</h2>
+              <p class="hero-facts" id="detail-facts"></p>
+            </div>
+          </div>
+          <p class="genre-line" id="detail-genres"></p>
+          <div class="synopsis-head"><h3>Synopsis</h3><span id="synopsis-hint"></span></div>
+          <div class="synopsis-scroll" tabindex="0" aria-label="Anime synopsis">
+            <p id="detail-synopsis">No synopsis is available for this title.</p>
+          </div>
+          <button class="primary-button detail-launch" id="detail-launch" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z"/></svg>
+            <span>Open in ani-cli</span>
+            <svg class="trailing-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 13v6H4V5h6"/></svg>
+          </button>
+        </article>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <button class="attribution" id="anilist-link" type="button">Powered by AniList</button>
+      <span class="footer-spacer"></span>
+      <span class="footer-status" id="footer-status" role="status" aria-live="polite"></span>
+      <span class="footer-count" id="footer-count"></span>
+    </footer>
+  </div>
+</body>
+</html>

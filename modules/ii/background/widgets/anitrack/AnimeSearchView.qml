@@ -102,6 +102,11 @@ Item {
         search();
     }
 
+    function searchFromWeb(query) {
+        searchField.text = String(query || "");
+        search();
+    }
+
     function loadMore() {
         if (!hasNextPage || loadingMore || activeRequest)
             return;
