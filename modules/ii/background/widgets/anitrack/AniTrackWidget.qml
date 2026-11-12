@@ -95,6 +95,7 @@ AbstractBackgroundWidget {
             error: root.cssColor(root.palette.error),
             errorContainer: root.cssColor(root.palette.errorContainer),
             onPrimary: root.cssColor(root.palette.buttonText),
+            colorScheme: Appearance.m3colors.darkmode ? "dark" : "light",
             fontMain: Appearance.font.family.main,
             reducedMotion: Config.options.appearance.reducedMotion
         })

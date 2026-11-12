@@ -415,6 +415,9 @@
     for (const [name, value] of Object.entries(variables)) {
       if (typeof value === "string" && value) document.documentElement.style.setProperty(name, value);
     }
+    if (theme.colorScheme === "dark" || theme.colorScheme === "light") {
+      document.documentElement.style.colorScheme = theme.colorScheme;
+    }
     if (theme.fontMain) {
       const safeFont = String(theme.fontMain).replace(/["\\\n\r]/g, " ").trim();
       document.documentElement.style.setProperty("--font-main", `"${safeFont}", sans-serif`);
