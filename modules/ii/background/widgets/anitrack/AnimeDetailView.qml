@@ -10,12 +10,7 @@ Item {
     signal backRequested()
     signal launchRequested(string title)
     property var anime: null
-    property var palette: ({
-        panel: "#1A1928", surface: "#242235", card: "#211F30",
-        cardHover: "#302B42", outline: "#655C77", text: "#F5F1FB",
-        secondary: "#C7BEDA", muted: "#B9AFCA", lavender: "#C2AAFF",
-        mint: "#9DE3D4", buttonText: "#20172F"
-    })
+    required property var palette
 
     ColumnLayout {
         anchors.fill: parent
@@ -59,9 +54,9 @@ Item {
                     anchors.fill: parent
                     gradient: Gradient {
                         orientation: Gradient.Vertical
-                        GradientStop { position: 0.0; color: "#3311101B" }
-                        GradientStop { position: 0.42; color: "#8011101B" }
-                        GradientStop { position: 1.0; color: "#F211101B" }
+                        GradientStop { position: 0.0; color: ColorUtils.applyAlpha(Appearance.colors.colSurfaceContainerLow, 0.14) }
+                        GradientStop { position: 0.42; color: ColorUtils.applyAlpha(Appearance.colors.colSurfaceContainerLow, 0.56) }
+                        GradientStop { position: 1.0; color: ColorUtils.applyAlpha(Appearance.colors.colSurfaceContainerLow, 0.94) }
                     }
                 }
 
@@ -190,7 +185,7 @@ Item {
             Layout.preferredHeight: 42
             buttonRadius: 12
             colBackground: root.palette.lavender
-            colBackgroundHover: "#D2C1FF"
+            colBackgroundHover: root.palette.primaryHover
             colRipple: root.palette.text
             rippleEnabled: !Config.options.appearance.reducedMotion
             rippleDuration: 140

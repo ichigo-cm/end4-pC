@@ -21,12 +21,7 @@ Item {
     property var artworkQueue: []
     property var artworkRequest: null
     property string activeArtworkKey: ""
-    property var palette: ({
-        panel: "#1A1928", surface: "#242235", card: "#211F30",
-        cardHover: "#302B42", outline: "#655C77", text: "#F5F1FB",
-        secondary: "#C7BEDA", muted: "#B9AFCA", lavender: "#C2AAFF",
-        mint: "#9DE3D4", error: "#FFB4AB", buttonText: "#20172F"
-    })
+    required property var palette
 
     function normalizedTitle(value) {
         return String(value || "").normalize("NFKC").toLowerCase()
@@ -219,7 +214,7 @@ Item {
             Layout.preferredHeight: 42
             buttonRadius: 12
             colBackground: root.palette.lavender
-            colBackgroundHover: "#D2C1FF"
+            colBackgroundHover: root.palette.primaryHover
             colRipple: root.palette.text
             rippleEnabled: !Config.options.appearance.reducedMotion
             rippleDuration: 140
@@ -327,7 +322,7 @@ Item {
                             implicitHeight: 34
                             buttonRadius: 10
                             colBackground: root.palette.lavender
-                            colBackgroundHover: "#D2C1FF"
+                            colBackgroundHover: root.palette.primaryHover
                             colRipple: root.palette.text
                             rippleEnabled: !Config.options.appearance.reducedMotion
                             rippleDuration: 140

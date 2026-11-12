@@ -7,7 +7,7 @@ Rectangle {
     id: root
 
     property string sourceUrl: ""
-    property var palette: ({ panel: "#1A1928", outline: "#655C77", muted: "#B9AFCA" })
+    required property var palette
 
     radius: Appearance.rounding.small
     color: root.palette.panel

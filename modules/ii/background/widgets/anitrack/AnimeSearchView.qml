@@ -25,12 +25,7 @@ Item {
     property bool hasNextPage: false
     property bool loadingMore: false
     property var apiCoordinator: null
-    property var palette: ({
-        panel: "#1A1928", surface: "#242235", card: "#211F30",
-        cardHover: "#302B42", outline: "#655C77", text: "#F5F1FB",
-        secondary: "#C7BEDA", muted: "#B9AFCA", lavender: "#C2AAFF",
-        mint: "#9DE3D4", error: "#FFB4AB", buttonText: "#20172F"
-    })
+    required property var palette
 
     function imageUrl(anime) {
         const cover = anime?.coverImage || {};
@@ -467,7 +462,7 @@ Item {
                                         Layout.preferredHeight: 34
                                         buttonRadius: 10
                                         colBackground: root.palette.lavender
-                                        colBackgroundHover: "#D2C1FF"
+                                        colBackgroundHover: root.palette.primaryHover
                                         colRipple: root.palette.text
                                         rippleEnabled: !Config.options.appearance.reducedMotion
                                         rippleDuration: 140

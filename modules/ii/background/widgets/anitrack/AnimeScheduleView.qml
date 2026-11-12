@@ -23,12 +23,7 @@ Item {
     property bool queuedAppend: false
     property bool hasNextPage: false
     property bool loadingMore: false
-    property var palette: ({
-        panel: "#1A1928", surface: "#242235", card: "#211F30",
-        cardHover: "#302B42", outline: "#655C77", text: "#F5F1FB",
-        secondary: "#C7BEDA", muted: "#B9AFCA", lavender: "#C2AAFF",
-        mint: "#9DE3D4", error: "#FFB4AB", buttonText: "#20172F"
-    })
+    required property var palette
 
     readonly property var weekdays: [
         {key: "monday", name: qsTr("Monday"), shortName: qsTr("Mon")},
@@ -297,7 +292,7 @@ Item {
                     colBackground: modelData.key === root.selectedDay
                         ? root.palette.lavender : root.palette.panel
                     colBackgroundHover: modelData.key === root.selectedDay
-                        ? "#D2C1FF" : root.palette.cardHover
+                        ? root.palette.primaryHover : root.palette.cardHover
                     colRipple: root.palette.text
                     rippleEnabled: !Config.options.appearance.reducedMotion
                     rippleDuration: 140

@@ -28,21 +28,23 @@ AbstractBackgroundWidget {
     property double lastAniListRequestMs: 0
     property double aniListBlockedUntilMs: 0
     property double lastLaunchMs: 0
+    // Keep AniTrack in the same live Material palette as the rest of the shell.
     readonly property var palette: ({
-        ink: "#11101B",
-        panel: "#1A1928",
-        surface: "#242235",
-        card: "#211F30",
-        cardHover: "#302B42",
-        outline: "#655C77",
-        text: "#F5F1FB",
-        secondary: "#C7BEDA",
-        muted: "#B9AFCA",
-        lavender: "#C2AAFF",
-        mint: "#9DE3D4",
-        blush: "#F1AFCB",
-        error: "#FFB4AB",
-        buttonText: "#20172F"
+        panel: Appearance.colors.colSurfaceContainerLow,
+        surface: Appearance.colors.colSurfaceContainer,
+        card: Appearance.colors.colSurfaceContainerLow,
+        cardHover: Appearance.colors.colPrimaryContainerHover,
+        outline: Appearance.colors.colOutlineVariant,
+        text: Appearance.colors.colOnSurface,
+        secondary: Appearance.colors.colOnSurfaceVariant,
+        muted: Appearance.colors.colOnSurfaceVariant,
+        lavender: Appearance.colors.colPrimary,
+        mint: Appearance.colors.colSecondary,
+        blush: Appearance.colors.colTertiary,
+        error: Appearance.colors.colError,
+        errorContainer: Appearance.colors.colErrorContainer,
+        buttonText: Appearance.colors.colOnPrimary,
+        primaryHover: Appearance.colors.colPrimaryHover
     })
     readonly property bool detailOpen: tabBar.currentIndex === 0 && searchView.selectedAnime !== null
 
@@ -220,10 +222,6 @@ AbstractBackgroundWidget {
         id: card
         anchors.fill: parent
         widget: root
-        glass: false
-        color: root.palette.ink
-        tint: root.palette.ink
-        tintOpacity: 0.96
 
         ColumnLayout {
             anchors.fill: parent
@@ -234,21 +232,16 @@ AbstractBackgroundWidget {
                 Layout.fillWidth: true
                 spacing: 11
 
-                Rectangle {
+                MaterialShapeWrappedMaterialSymbol {
                     Layout.preferredWidth: 40
                     Layout.preferredHeight: 40
-                    radius: 14
-                    color: root.palette.panel
-                    border.width: 1
-                    border.color: root.palette.outline
-                    StyledText {
-                        anchors.centerIn: parent
-                        text: "A"
-                        font.pixelSize: 23
-                        font.weight: Font.DemiBold
-                        color: root.palette.lavender
-                        Accessible.ignored: true
-                    }
+                    shape: MaterialShape.Shape.Cookie12Sided
+                    color: Appearance.colors.colPrimary
+                    colSymbol: Appearance.colors.colOnPrimary
+                    text: "movie"
+                    iconSize: 20
+                    fill: 1
+                    padding: 8
                 }
 
                 ColumnLayout {
@@ -305,20 +298,12 @@ AbstractBackgroundWidget {
                 }
             }
 
-            TabBar {
+            SecondaryTabBar {
                 id: tabBar
                 Layout.fillWidth: true
                 Layout.preferredHeight: 39
                 spacing: 0
-                background: Item {
-                    Rectangle {
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.bottom: parent.bottom
-                        height: 1
-                        color: root.palette.outline
-                    }
-                }
+                indicatorPadding: 10
                 onCurrentIndexChanged: {
                     if (currentIndex === 1)
                         scheduleView.loadSelectedDay();
@@ -340,19 +325,6 @@ AbstractBackgroundWidget {
                             border.width: discoverTab.activeFocus ? 1 : 0
                             border.color: root.palette.mint
                             Accessible.ignored: true
-                        }
-                        Rectangle {
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.bottom: parent.bottom
-                            height: 3
-                            color: discoverTab.checked ? root.palette.lavender : "transparent"
-                            Behavior on color {
-                                ColorAnimation {
-                                    duration: Config.options.appearance.reducedMotion ? 0 : 150
-                                    easing.type: Easing.OutCubic
-                                }
-                            }
                         }
                     }
                     contentItem: StyledText {
@@ -386,19 +358,6 @@ AbstractBackgroundWidget {
                             border.color: root.palette.mint
                             Accessible.ignored: true
                         }
-                        Rectangle {
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.bottom: parent.bottom
-                            height: 3
-                            color: airingTab.checked ? root.palette.lavender : "transparent"
-                            Behavior on color {
-                                ColorAnimation {
-                                    duration: Config.options.appearance.reducedMotion ? 0 : 150
-                                    easing.type: Easing.OutCubic
-                                }
-                            }
-                        }
                     }
                     contentItem: StyledText {
                         text: airingTab.text
@@ -430,19 +389,6 @@ AbstractBackgroundWidget {
                             border.width: historyTab.activeFocus ? 1 : 0
                             border.color: root.palette.mint
                             Accessible.ignored: true
-                        }
-                        Rectangle {
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.bottom: parent.bottom
-                            height: 3
-                            color: historyTab.checked ? root.palette.lavender : "transparent"
-                            Behavior on color {
-                                ColorAnimation {
-                                    duration: Config.options.appearance.reducedMotion ? 0 : 150
-                                    easing.type: Easing.OutCubic
-                                }
-                            }
                         }
                     }
                     contentItem: StyledText {
@@ -505,7 +451,7 @@ AbstractBackgroundWidget {
                 Layout.preferredHeight: 34
                 radius: Appearance.rounding.small
                 color: root.launchFailed
-                    ? "#3A2028" : root.palette.surface
+                    ? root.palette.errorContainer : root.palette.surface
                 visible: root.launchStatus !== ""
                 RowLayout {
                     anchors.fill: parent
