@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d0f12">
+  <meta name="description" content="AniTrack — a local anime discovery and ani-cli companion.">
+  <title>AniTrack — Discover anime</title>
+  <link rel="stylesheet" href="app.css">
+  <script defer src="preview-data.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#discover" aria-label="AniTrack home">
+        <span class="brand-mark" aria-hidden="true">A</span>
+        <span class="brand-name">AniTrack</span>
+      </a>
+
+      <nav class="main-nav" aria-label="Main navigation">
+        <button class="nav-link is-active" type="button" data-page="discover" aria-current="page">Discover</button>
+        <button class="nav-link" type="button" data-page="airing">Airing</button>
+        <button class="nav-link" type="button" data-page="history">My History</button>
+      </nav>
+
+      <form class="search-box" id="search-form" role="search">
+        <label class="visually-hidden" for="search-input">Search anime titles</label>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.4"/><path d="m15.5 15.5 4.2 4.2"/></svg>
+        <input id="search-input" type="search" placeholder="Search anime" autocomplete="off">
+        <kbd aria-hidden="true">/</kbd>
+      </form>
+
+      <button class="icon-button" id="accent-toggle" type="button" aria-label="Toggle preview accent" title="Toggle preview accent">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9c0-1.1-.9-2-2-2h-1.2a1.8 1.8 0 0 1-1.4-2.9A2 2 0 0 0 14.8 4H12Z"/><circle cx="7.5" cy="10" r="1"/><circle cx="10" cy="6.8" r="1"/><circle cx="14.5" cy="7" r="1"/></svg>
+      </button>
+    </header>
+
+    <main id="main" tabindex="-1">
+      <section class="page is-visible" id="page-discover" aria-labelledby="discover-heading">
+        <h1 class="visually-hidden" id="discover-heading">Discover anime</h1>
+        <section class="hero" id="hero" aria-label="Featured anime">
+          <div class="hero-image" id="hero-image" aria-hidden="true"></div>
+          <div class="hero-scrim" aria-hidden="true"></div>
+          <div class="hero-content">
+            <p class="eyebrow"><span class="live-dot" aria-hidden="true"></span><span id="hero-kicker">TRENDING ON ANILIST</span></p>
+            <p class="hero-index" id="hero-index">01 <span>/ 05</span></p>
+            <h2 id="hero-title">Anime title</h2>
+            <p class="hero-meta" id="hero-meta"></p>
+            <p class="hero-genres" id="hero-genres"></p>
+            <div class="hero-actions">
+              <button class="button button-primary" id="hero-launch" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z"/></svg>
+                <span>Open in ani-cli</span>
+              </button>
+              <button class="button button-glass" id="hero-details" type="button">View details</button>
+            </div>
+          </div>
+          <div class="hero-controls" aria-label="Featured anime controls">
+            <button class="hero-arrow" id="hero-prev" type="button" aria-label="Previous featured anime">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
+            <div class="hero-dots" id="hero-dots" aria-label="Choose featured anime"></div>
+            <button class="hero-arrow" id="hero-next" type="button" aria-label="Next featured anime">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+          </div>
+        </section>
+
+        <section class="shelf-section" aria-labelledby="trending-heading">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">A good place to start</p>
+              <h2 id="trending-heading">Trending right now</h2>
+            </div>
+            <div class="shelf-controls">
+              <span class="source-label">AniList</span>
+              <button class="icon-button small" id="shelf-prev" type="button" aria-label="Scroll posters left">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+              </button>
+              <button class="icon-button small" id="shelf-next" type="button" aria-label="Scroll posters right">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="poster-rail" id="trending-rail" aria-live="polite"></div>
+        </section>
+
+        <section class="lower-grid">
+          <article class="feature-panel schedule-teaser">
+            <div class="panel-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4m8-4v4M4 10h16M8 14h3m-3 3h6"/></svg>
+            </div>
+            <div class="panel-copy">
+              <p class="section-kicker">Never miss an episode</p>
+              <h2>Today’s airing schedule</h2>
+              <p>Local-time episode listings from AniList will live here.</p>
+            </div>
+            <button class="text-action" type="button" data-open-page="airing">See schedule <span aria-hidden="true">→</span></button>
+          </article>
+          <article class="feature-panel history-teaser">
+            <div class="panel-icon history-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 5v5h5M5.6 9A8 8 0 1 1 4 12m8-4v5l3 2"/></svg>
+            </div>
+            <div class="panel-copy">
+              <p class="section-kicker">Your progress, kept local</p>
+              <h2>Pick up where you left off</h2>
+              <p>ani-cli history will be read directly from your machine.</p>
+            </div>
+            <button class="text-action" type="button" data-open-page="history">Open history <span aria-hidden="true">→</span></button>
+          </article>
+        </section>
+      </section>
+
+      <section class="page" id="page-airing" aria-labelledby="airing-heading" hidden>
+        <div class="page-heading">
+          <div>
+            <p class="section-kicker">Keep your week in sync</p>
+            <h1 id="airing-heading">Airing schedule</h1>
+            <p>Episode times shown in your local timezone.</p>
+          </div>
+          <span class="preview-badge">LOCAL PREVIEW</span>
+        </div>
+        <div class="weekday-row" id="weekday-row" role="group" aria-label="Choose a weekday"></div>
+        <div class="schedule-layout">
+          <div class="schedule-art" id="schedule-art" aria-hidden="true"></div>
+          <div class="schedule-message">
+            <p class="eyebrow">UP NEXT</p>
+            <h2 id="schedule-day-title">This day’s lineup</h2>
+            <p>Live episode times and AniList schedule entries connect in the next build. This preview avoids inventing air times.</p>
+            <button class="button button-primary" type="button" data-preview-action="schedule">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
+              <span>Preview schedule layout</span>
+            </button>
+          </div>
+        </div>
+        <section class="shelf-section compact-shelf" aria-labelledby="currently-airing-heading">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">From the latest AniList result set</p>
+              <h2 id="currently-airing-heading">Currently airing</h2>
+            </div>
+          </div>
+          <div class="poster-rail" id="airing-rail"></div>
+        </section>
+      </section>
+
+      <section class="page" id="page-history" aria-labelledby="history-heading" hidden>
+        <div class="page-heading">
+          <div>
+            <p class="section-kicker">A small local footprint</p>
+            <h1 id="history-heading">My History</h1>
+            <p>Read from ani-cli on this computer. No viewing data is uploaded.</p>
+          </div>
+          <span class="local-badge"><span aria-hidden="true"></span> LOCAL ONLY</span>
+        </div>
+        <div class="history-empty">
+          <div class="history-orbit" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 5v5h5M5.6 9A8 8 0 1 1 4 12m8-4v5l3 2"/></svg>
+          </div>
+          <p class="section-kicker">Your next episode is waiting</p>
+          <h2>History will appear here</h2>
+          <p>The full build will read your local ani-cli history and match saved titles with AniList artwork.</p>
+          <button class="button button-primary" type="button" data-preview-action="history">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z"/></svg>
+            <span>Continue with ani-cli</span>
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <span class="footer-brand">AniTrack</span>
+      <span class="footer-separator" aria-hidden="true">·</span>
+      <span>AniList data preview</span>
+      <span class="footer-spacer"></span>
+      <span class="build-note">Design preview · local integrations next</span>
+    </footer>
+  </div>
+
+  <dialog class="detail-dialog" id="detail-dialog" aria-labelledby="dialog-title">
+    <button class="dialog-close icon-button" id="dialog-close" type="button" aria-label="Close anime details">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+    </button>
+    <div class="dialog-art" id="dialog-art" aria-hidden="true"></div>
+    <div class="dialog-copy">
+      <p class="eyebrow" id="dialog-kicker">ANILIST</p>
+      <h2 id="dialog-title">Anime details</h2>
+      <p class="dialog-meta" id="dialog-meta"></p>
+      <p class="dialog-genres" id="dialog-genres"></p>
+      <p class="dialog-description">Synopsis and complete details will be live in the connected app.</p>
+      <button class="button button-primary" id="dialog-launch" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z"/></svg>
+        <span>Open in ani-cli</span>
+      </button>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
